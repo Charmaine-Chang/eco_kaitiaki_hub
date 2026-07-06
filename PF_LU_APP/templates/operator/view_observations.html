@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% set active_page = 'incidental_observation_menu' %}
+{% block title %}View Incidental Observations - Kaitiaki Hub{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('operator.incidental_observation_menu') }}" class="text-decoration-none text-muted">Incidental Observation</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">View Observations</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-journals fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">Incidental Observations</h1>
+                <p class="text-muted mb-0 small">Browse all recorded incidental observations.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{{ url_for('operator.add_observation') }}" class="btn btn-forest rounded-pill px-4 fw-bold btn-sm shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i> Add Observation
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        {% if observations and observations|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Related Line</th>
+                        <th>Added By</th>
+                        <th>Date</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for obs in observations %}
+                    <tr>
+                        <td class="ps-4">{{ obs['note_id'] }}</td>
+                        <td><span class="badge bg-success-soft text-forest rounded-pill px-3">{{ obs['observation_type'] }}</span></td>
+                        <td class="text-truncate" style="max-width: 200px;">{{ obs['description'] }}</td>
+                        <td>{{ obs['related_line'] or '—' }}</td>
+                        <td>{{ obs['added_by'] }}</td>
+                        <td>{{ obs['created_at'].strftime('%Y-%m-%d %H:%M') if obs['created_at'] else '' }}</td>
+                        <td class="text-end pe-4">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a href="{{ url_for('operator.edit_observation', note_id=obs['note_id']) }}"
+                                   class="btn btn-sm btn-outline-forest rounded-pill fw-bold">Edit</a>
+                                <form method="POST"
+                                      action="{{ url_for('operator.delete_observation', note_id=obs['note_id']) }}"
+                                      onsubmit="return confirm('Are you sure you want to delete this observation?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill fw-bold">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {% from 'macros.html' import empty_state %}
+        {{ empty_state(icon='bi-binoculars', title='No observations found', description='No incidental observations have been recorded yet.', button_text='Add Observation', button_url=url_for('operator.add_observation'), button_icon='bi-plus-lg') }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

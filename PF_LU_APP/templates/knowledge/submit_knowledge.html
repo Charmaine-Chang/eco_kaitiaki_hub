@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% set active_page = 'knowledge' %}
+{% block title %}Submit Knowledge Entry — Knowledge Hub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb small text-uppercase ls-1">
+                    <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.knowledge_hub') }}" class="text-decoration-none text-muted">Knowledge Hub</a></li>
+                    <li class="breadcrumb-item active text-forest fw-bold">Submit Entry</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-bottom p-4">
+                    <h2 class="fw-bold mb-0 text-forest">
+                        <i class="bi bi-lightbulb me-2"></i>Submit Knowledge Entry
+                    </h2>
+                    <p class="text-muted small mb-0 mt-1">
+                        Your entry will be reviewed by a Group Coordinator before appearing in the Knowledge Hub.
+                    </p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for flashcat, flashmsg in messages %}
+                            <div class="alert alert-{{ flashcat }} alert-dismissible fade show rounded-3" role="alert">
+                                <i class="bi bi-exclamation-circle me-2"></i>{{ flashmsg }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+
+                        <div class="mb-4">
+                            <label for="title" class="form-label fw-bold">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" id="title" name="title"
+                                   value="{{ title|default('') }}" required
+                                   placeholder="e.g. How to identify mustelid tracks">
+                            <div class="invalid-feedback">Please provide a title for your entry.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="category" class="form-label fw-bold">Category <span class="text-danger">*</span></label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="" disabled {% if not category %}selected{% endif %}>Select a category...</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
+                                <option value="__other__" {% if category and category not in categories %}selected{% endif %}>Other (enter new category)</option>
+                            </select>
+                            <div class="invalid-feedback">Please select or enter a category.</div>
+                            <input type="text" class="form-control mt-2" id="category_other" name="category_other"
+                                   placeholder="Enter new category name" style="display:none;"
+                                   value="{% if category and category not in categories %}{{ category }}{% endif %}">
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="content" class="form-label fw-bold">Content <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="content" name="content" rows="8" required
+                                      placeholder="Write your knowledge entry here...">{{ content|default('') }}</textarea>
+                            <div class="invalid-feedback">Please provide content for your entry.</div>
+                            <div class="form-text text-muted">Be as detailed as possible - well-written entries are more likely to be approved.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="photo" class="form-label fw-bold">Image <span class="text-muted fw-normal">(Optional)</span></label>
+                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+                            <div class="form-text text-muted">Supported formats: PNG, JPG, JPEG, GIF, WEBP.</div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                            <a href="{{ url_for('main.knowledge_hub') }}" class="btn btn-outline-secondary rounded-pill px-4">
+                                <i class="bi bi-arrow-left me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-forest rounded-pill px-5 fw-bold shadow-sm">
+                                <i class="bi bi-send-check me-2"></i>Submit for Approval
+                            </button>
+                        </div>
+
+                        <p class="text-muted small mt-3 mb-0">
+                            <span class="text-danger">*</span> Required fields.
+                            Your submission will not appear publicly until a coordinator approves it.
+                        </p>
+
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 mt-4 bg-light">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-forest mb-2"><i class="bi bi-info-circle me-2"></i>What happens next?</h6>
+                    <ul class="text-muted small mb-0 ps-3">
+                        <li>A Group Coordinator will review your entry.</li>
+                        <li>If approved, it will appear in the public Knowledge Hub.</li>
+                        <li>If rejected, it will remain unpublished. Track your submissions via
+                            <a href="{{ url_for('knowledge.my_submissions') }}" class="text-forest fw-semibold">My Submissions</a>.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    var sel = document.getElementById('category');
+    var other = document.getElementById('category_other');
+    function toggle() {
+        var isOther = sel.value === '__other__';
+        other.style.display = isOther ? 'block' : 'none';
+        other.required = isOther;
+    }
+    sel.addEventListener('change', toggle);
+    window.addEventListener('DOMContentLoaded', toggle);
+})();
+(function () {
+    'use strict';
+    document.querySelectorAll('.needs-validation').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+})();
+</script>
+{% endblock %}

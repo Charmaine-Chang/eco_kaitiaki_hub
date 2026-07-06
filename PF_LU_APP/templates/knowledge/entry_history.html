@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% set active_page = 'knowledge_hub' %}
+
+{% block title %}Version history — {{ entry.title }}{% endblock %}
+
+{% block content %}
+<div class="premium-breadcrumb mb-3">
+    <a href="{{ url_for('main.home') }}"><i class="bi bi-house-door breadcrumb-icon"></i> Home</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{{ url_for('knowledge.hub_list') }}">Knowledge Hub</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{{ url_for('knowledge.entry_detail', entry_id=entry.entry_id) }}">{{ entry.title }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="text-dark fw-bold">Version history</span>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="p-4 bg-white rounded-4 shadow-sm border-0">
+            <h1 class="h4 fw-black text-forest mb-1"><i class="bi bi-clock-history me-2"></i>Version history</h1>
+            <p class="text-muted small mb-0">{{ entry.title }} — snapshots taken before each save. The <strong>current</strong> live version is on the entry page.</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-4">
+                <h2 class="h6 fw-bold text-dark mb-2">Current (live)</h2>
+                <p class="small text-muted mb-2">Updated {% if entry.updated_at %}{{ entry.updated_at|date_nz }}{% else %}{{ entry.created_at|date_nz }}{% endif %}</p>
+                <p class="mb-0"><a href="{{ url_for('knowledge.entry_detail', entry_id=entry.entry_id) }}" class="btn btn-sm btn-forest rounded-pill">View current entry</a></p>
+            </div>
+        </div>
+
+        {% if revisions %}
+        <h2 class="h6 text-uppercase text-muted fw-bold ls-1 mb-3">Earlier versions</h2>
+        <div class="d-flex flex-column gap-3">
+            {% for r in revisions %}
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+                        <span class="badge bg-light text-dark border">Version {{ r.version_number }}</span>
+                        <span class="small text-muted">{{ r.created_at|date_nz }}</span>
+                    </div>
+                    <p class="small text-muted mb-2">Archived when edited by {{ r.archived_by_username }}</p>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <span class="badge bg-success-soft text-forest small">{{ r.category }}</span>
+                        {% if r.is_featured %}<span class="badge bg-warning text-dark small">Featured</span>{% endif %}
+                        {% if not r.is_published %}<span class="badge bg-secondary small">Unpublished</span>{% endif %}
+                    </div>
+                    <h3 class="h6 fw-bold text-dark">{{ r.title }}</h3>
+                    {% if r.photo_url %}
+                    <div class="mb-2"><img src="{{ r.photo_url | photo_src }}" alt="" class="img-fluid rounded-3 border" style="max-height: 200px; object-fit: cover;"></div>
+                    {% endif %}
+                    <div class="text-muted small lh-lg" style="white-space: pre-wrap;">{{ r.content or '' }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-5 text-center text-muted">
+                <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+                <p class="mb-0">No previous versions yet. Versions appear after you edit and save the entry.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="mt-4">
+            <a href="{{ url_for('knowledge.entry_edit', entry_id=entry.entry_id) }}" class="btn btn-outline-forest rounded-pill me-2">Edit entry</a>
+            <a href="{{ url_for('knowledge.hub_list') }}" class="btn btn-outline-secondary rounded-pill">Back to hub</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

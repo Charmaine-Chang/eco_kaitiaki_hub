@@ -1,0 +1,194 @@
+{% extends "base.html" %} {% block title %}{{ 'Edit' if update else 'Create' }}
+Update{% endblock %} {% set active_page = 'group_updates' %} {% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="mb-4">
+                <a
+                    href="{{ url_for('updates.manage_updates', group_id=group_id) }}"
+                    class="btn btn-light rounded-pill shadow-sm"
+                >
+                    <i class="bi bi-arrow-left me-1"></i> Back to Updates
+                </a>
+            </div>
+
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-bottom p-4">
+                    <h3 class="fw-bold mb-1 text-forest">
+                        <i class="bi bi-pencil-square me-2"></i>{{ 'Edit' if
+                        update else 'Create New' }} Update
+                    </h3>
+                    <p class="text-muted small mb-0">
+                        {% if update and update.is_published %}
+                        <span class="badge bg-success rounded-pill me-2"
+                            ><i class="bi bi-check-circle me-1"></i
+                            >Published</span
+                        >
+                        {% elif update %}
+                        <span
+                            class="badge bg-warning text-dark rounded-pill me-2"
+                            ><i class="bi bi-pencil me-1"></i>Draft</span
+                        >
+                        {% endif %} Saving as draft keeps it hidden from members
+                        until you publish.
+                    </p>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <form
+                        action=""
+                        method="POST"
+                        enctype="multipart/form-data"
+                        class="needs-validation"
+                        novalidate
+                        id="updateForm"
+                    >
+                        <div class="mb-4">
+                            <label for="update_title" class="form-label fw-bold"
+                                >Update Title
+                                <span class="text-danger">*</span></label
+                            >
+                            <input
+                                type="text"
+                                class="form-control form-control-lg"
+                                id="update_title"
+                                name="update_title"
+                                value="{{ update.update_title if update else '' }}"
+                                required
+                                placeholder="e.g. Monthly Trap Check Results"
+                            />
+                            <div class="invalid-feedback">
+                                Please provide a title for the update.
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label
+                                for="update_content"
+                                class="form-label fw-bold"
+                                >Content
+                                <span class="text-danger">*</span></label
+                            >
+                            <textarea
+                                class="form-control"
+                                id="update_content"
+                                name="update_content"
+                                rows="6"
+                                required
+                                placeholder="Write your update details here..."
+                            >
+{{ update.update_content if update else '' }}</textarea
+                            >
+                            <div class="invalid-feedback">
+                                Please provide some content for the update.
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="photos" class="form-label fw-bold">Attach Photos (Optional, Max 4)</label>
+
+                            {% if update_images %}
+                            <div class="mb-3">
+                                <span class="d-block small text-muted mb-2 fw-semibold">Current Photos (Check to Delete):</span>
+                                <div class="row g-2">
+                                    {% for img in update_images %}
+                                    <div class="col-6 col-sm-3">
+                                        <div class="card h-100 border rounded shadow-sm overflow-hidden position-relative">
+                                            <img src="{{ img.photo_url }}" class="card-img-top" style="height: 100px; object-fit: cover;" alt="Current photo">
+                                            <div class="card-body p-2 text-center bg-light">
+                                                <div class="form-check d-inline-block text-start">
+                                                    <input class="form-check-input" type="checkbox" name="delete_images" value="{{ img.image_id }}" id="del_img_{{ img.image_id }}">
+                                                    <label class="form-check-label small text-danger fw-semibold cursor-pointer" for="del_img_{{ img.image_id }}">
+                                                        Delete
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <input
+                                class="form-control"
+                                type="file"
+                                id="photos"
+                                name="photos"
+                                accept="image/png, image/jpeg, image/jpg, image/gif"
+                                multiple
+                            />
+                            <div class="form-text text-muted">
+                                Supported formats: JPG, PNG, GIF. Max size: 5MB per image.
+                                You can upload up to 4 photos in total.
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-flex justify-content-end gap-3 flex-wrap">
+                            <button
+                                type="submit"
+                                name="action"
+                                value="draft"
+                                class="btn btn-outline-forest rounded-pill px-4 fw-bold shadow-sm"
+                            >
+                                <i class="bi bi-save me-2"></i>{% if update and
+                                update.is_published %}Unpublish to Draft{% else
+                                %}Save as Draft{% endif %}
+                            </button>
+                            <button
+                                type="submit"
+                                name="action"
+                                value="publish"
+                                class="btn btn-forest rounded-pill px-4 fw-bold shadow-sm"
+                            >
+                                <i class="bi bi-send-check me-2"></i>Publish
+                                Update
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_scripts %}
+<script>
+    // Bootstrap form validation and maximum photos check
+    (function () {
+        "use strict";
+        var forms = document.querySelectorAll(".needs-validation");
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener(
+                "submit",
+                function (event) {
+                    const fileInput = document.getElementById('photos');
+                    const currentCount = {{ update_images|length if update_images else 0 }};
+                    const deleteCheckboxes = document.querySelectorAll('input[name="delete_images"]');
+                    
+                    let filesSelected = fileInput.files.length;
+                    let checkedDeleteCount = 0;
+                    deleteCheckboxes.forEach(cb => {
+                        if (cb.checked) checkedDeleteCount++;
+                    });
+                    
+                    let total = currentCount - checkedDeleteCount + filesSelected;
+                    if (total > 4) {
+                        alert('Error: You can have a maximum of 4 photos in an update. Please reduce the number of uploaded files or delete more existing ones.');
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return;
+                    }
+
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add("was-validated");
+                },
+                false,
+            );
+        });
+    })();
+</script>
+{% endblock %}

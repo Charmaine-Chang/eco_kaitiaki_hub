@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% set active_page = 'stock_inventory' %}
+{% block title %}Confirm inventory adjustment{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card border-0 shadow-sm rounded-4 border-start border-warning border-4">
+            <div class="card-body p-4">
+                <h1 class="h4 fw-black text-forest mb-3">Confirm adjustment</h1>
+                <p>{{ 'Record consumption' if action == 'consume' else 'Record receipt' }} for <strong>{{ item.item_name }}</strong>?</p>
+                <p class="small text-muted">Current: <strong>{{ item.quantity }}</strong>{% if item.unit_of_measure %} {{ item.unit_of_measure }}{% endif %} · Adjustment: <strong>{{ adjust_qty }}</strong>{% if item.unit_of_measure %} {{ item.unit_of_measure }}{% endif %} · New: <strong>{{ new_qty }}</strong>{% if item.unit_of_measure %} {{ item.unit_of_measure }}{% endif %}</p>
+                {% if comment %}
+                <p class="small text-muted">Comment: {{ comment }}</p>
+                {% endif %}
+                <form method="POST">
+                    <input type="hidden" name="action" value="{{ action }}">
+                    <input type="hidden" name="adjust_qty" value="{{ adjust_qty }}">
+                    <input type="hidden" name="comment" value="{{ comment or '' }}">
+                    <input type="hidden" name="confirmed" value="1">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-forest rounded-pill fw-bold me-2">Confirm and save</button>
+                        <a href="{{ url_for('inventory.move_item', item_id=item.item_id) }}" class="btn btn-outline-forest rounded-pill fw-bold">Back</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

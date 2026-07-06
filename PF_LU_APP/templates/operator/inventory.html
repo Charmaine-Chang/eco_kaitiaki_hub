@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% set active_page = 'inventory' %}
+
+{% block title %}Equipment Inventory - Operator{% endblock %}
+
+{% block extra_head %}
+<style>
+    .asset-tab-link {
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1rem 1.5rem !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        border: none !important;
+        background: #f1f5f9 !important;
+        margin-right: 4px;
+    }
+    .asset-tab-link.active {
+        background: #fff !important;
+        color: #1a5e20 !important;
+        box-shadow: 0 -4px 10px rgba(0,0,0,0.03);
+    }
+    .tab-content-container {
+        background: #fff;
+        border-radius: 0 16px 16px 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set trap_list = inventory | selectattr('equip_type', 'equalto', 'trap') | list %}
+{% set bs_list = inventory | selectattr('equip_type', 'equalto', 'bait_station') | list %}
+
+<div class="container-fluid px-0">
+    <div class="premium-breadcrumb mb-4">
+        <a href="{{ url_for('main.home') }}">
+            <i class="bi bi-house-door breadcrumb-icon"></i> Home
+        </a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="{{ url_for('operator.operator_dashboard') }}" class="text-decoration-none text-muted">Dashboard</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="text-dark fw-bold">Equipment Inventory</span>
+    </div>
+
+    <div class="row align-items-end mb-4 g-3">
+        <div class="col-md-8">
+            <h1 class="h3 fw-black text-forest mb-1">Equipment Inventory</h1>
+            <p class="text-muted mb-0">Equipment on your assigned lines.</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('operator.operator_dashboard') }}" class="btn btn-outline-forest rounded-pill px-4 fw-bold">
+                <i class="bi bi-arrow-left me-2"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3 p-md-4">
+            <form class="row g-3 align-items-end" method="GET">
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold text-uppercase text-secondary ls-1 mb-1">Search Code</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 rounded-start-3"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0 border-0 shadow-sm rounded-end-3 bg-input-soft" placeholder="e.g. T-001" value="{{ search_query }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold text-uppercase text-secondary ls-1 mb-1">Filter by Line</label>
+                    <select name="line_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                        <option value="">All My Lines</option>
+                        {% for line in all_lines %}
+                        <option value="{{ line.line_id }}" {% if line_filter == line.line_id|string %}selected{% endif %}>{{ line.line_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-forest rounded-pill px-4 fw-bold shadow-sm flex-fill">
+                        <i class="bi bi-filter me-1"></i> Apply
+                    </button>
+                    <a href="{{ url_for('operator.view_inventory') }}" class="btn btn-outline-secondary rounded-pill px-3 fw-bold">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3 small fw-bold text-uppercase text-muted ls-1">Code</th>
+                            <th class="py-3 small fw-bold text-uppercase text-muted ls-1">Category</th>
+                            <th class="py-3 small fw-bold text-uppercase text-muted ls-1">Type</th>
+                            <th class="py-3 small fw-bold text-uppercase text-muted ls-1">Line</th>
+                            <th class="py-3 small fw-bold text-uppercase text-muted ls-1">Status</th>
+                            <th class="py-3 small fw-bold text-uppercase text-muted ls-1">Coordinates</th>
+                            <th class="text-end pe-4 py-3 small fw-bold text-uppercase text-muted ls-1">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in inventory %}
+                        <tr>
+                            {% set est = item.equipment_status_name if item.equipment_status_name else (item.status if item.status else 'Unknown') %}
+                            <td class="ps-4 fw-bold text-forest">#{{ item.code }}</td>
+                            <td>
+                                {% if item.equip_type == 'trap' %}
+                                <span class="badge bg-light text-dark"><i class="bi bi-crosshair2 me-1"></i>Trap</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark"><i class="bi bi-box-seam me-1"></i>Bait Station</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.type }}</td>
+                            <td class="text-muted">{{ item.line_name }}</td>
+                            <td>
+                                {% if est == 'Retired' or item.status == 'inactive' %}
+                                <span class="badge bg-danger text-white fw-bold px-3 py-1 rounded-pill">
+                                    <i class="bi bi-archive me-1 small"></i>Retired
+                                </span>
+                                {% elif est in ['Active', 'Deployed', 'Functional'] %}
+                                <span class="badge bg-forest text-white fw-bold px-3 py-1 rounded-pill">
+                                    <i class="bi bi-check-circle me-1 small"></i>{{ est }}
+                                </span>
+                                {% elif est == 'Under Repair' %}
+                                <span class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill">
+                                    <i class="bi bi-tools me-1 small"></i>Under Repair
+                                </span>
+                                {% elif est == 'In Storage' %}
+                                <span class="badge bg-secondary text-white fw-bold px-3 py-1 rounded-pill">
+                                    <i class="bi bi-box-seam me-1 small"></i>In Storage
+                                </span>
+                                {% else %}
+                                <span class="badge bg-light text-dark fw-bold px-3 py-1 rounded-pill">{{ est }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted small font-monospace">
+                                <div class="d-flex gap-2">
+                                    <input type="text" name="latitude" form="op-status-form-{{ item.equip_type }}-{{ item.code }}" class="form-control form-control-sm" value="{{ item.latitude if item.latitude is not none else '' }}" placeholder="Lat" style="width: 90px;">
+                                    <input type="text" name="longitude" form="op-status-form-{{ item.equip_type }}-{{ item.code }}" class="form-control form-control-sm" value="{{ item.longitude if item.longitude is not none else '' }}" placeholder="Lon" style="width: 90px;">
+                                </div>
+                            </td>
+                            <td class="text-end pe-4">
+                                <form id="op-status-form-{{ item.equip_type }}-{{ item.code }}" method="POST" action="{{ url_for('operator.update_equipment_status') }}" class="equipment-status-form d-flex justify-content-end align-items-center gap-2">
+                                    <input type="hidden" name="equip_type" value="{{ item.equip_type }}">
+                                    <input type="hidden" name="code" value="{{ item.code }}">
+                                    <select name="equipment_status" class="form-select form-select-sm border-0 shadow-sm status-select" data-original-status="{{ est }}" style="min-width: 140px; background: #f9fafb;">
+                                        {% for status in equipment_statuses %}
+                                        <option value="{{ status.equipment_status_name }}" {% if est == status.equipment_status_name %}selected{% endif %}>{{ status.equipment_status_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-forest rounded-pill px-3">Save</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-info-circle fs-2 d-block mb-2 opacity-25"></i>
+                                No equipment found on your assigned lines.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if total_pages > 1 %}
+            <div class="card-footer bg-white border-top py-3">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mb-0">
+                        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                            <a class="page-link border-0 rounded-pill mx-1" href="{{ url_for('operator.view_inventory', page=page-1, search=search_query, line_id=line_filter) }}">Previous</a>
+                        </li>
+                        
+                        {% for p in range(1, total_pages + 1) %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link border-0 rounded-pill mx-1 {% if p == page %}bg-forest text-white{% else %}text-dark{% endif %}" href="{{ url_for('operator.view_inventory', page=p, search=search_query, line_id=line_filter) }}">{{ p }}</a>
+                        </li>
+                        {% endfor %}
+                        
+                        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                            <a class="page-link border-0 rounded-pill mx-1" href="{{ url_for('operator.view_inventory', page=page+1, search=search_query, line_id=line_filter) }}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.equipment-status-form').forEach((form) => {
+        const formId = form.id;
+        const latitudeInput = document.querySelector(`input[name="latitude"][form="${formId}"]`);
+        const longitudeInput = document.querySelector(`input[name="longitude"][form="${formId}"]`);
+        const statusSelect = form.querySelector('select[name="equipment_status"]');
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault(); // Stop native submission
+
+            const selectedStatus = statusSelect ? statusSelect.value : '';
+            const lat = latitudeInput ? latitudeInput.value.trim() : '';
+            const lon = longitudeInput ? longitudeInput.value.trim() : '';
+
+            if (selectedStatus === 'Deployed') {
+                if (!lat || !lon) {
+                    const enteredLat = prompt('Enter latitude for deployed equipment:');
+                    if (enteredLat === null) return;
+                    const enteredLon = prompt('Enter longitude for deployed equipment:');
+                    if (enteredLon === null) return;
+                    
+                    if (!enteredLat.trim() || !enteredLon.trim()) {
+                        alert('Please enter both latitude and longitude.');
+                        return;
+                    }
+                    if (Number.isNaN(Number(enteredLat)) || Number.isNaN(Number(enteredLon))) {
+                        alert('Coordinates must be valid numbers.');
+                        return;
+                    }
+                    const numericLat = Number(enteredLat);
+                    const numericLon = Number(enteredLon);
+                    if (numericLat === 0 && numericLon === 0) {
+                        alert('Coordinates cannot be 0,0. Please enter a valid location.');
+                        return;
+                    }
+                    if (latitudeInput) latitudeInput.value = numericLat;
+                    if (longitudeInput) longitudeInput.value = numericLon;
+                }
+            }
+
+            const originalStatus = statusSelect ? statusSelect.getAttribute('data-original-status') : '';
+            if (originalStatus === 'Retired') {
+                alert('The item is no longer in service.');
+                if (statusSelect) statusSelect.value = 'Retired';
+                return;
+            }
+
+            if (selectedStatus === 'Retired') {
+                if (!confirm('Retire this equipment? This will make it inactive and read-only. Continue?')) {
+                    return;
+                }
+            }
+
+            // Perform AJAX Fetch
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            const formData = new FormData(form);
+            if (latitudeInput) formData.set('latitude', latitudeInput.value);
+            if (longitudeInput) formData.set('longitude', longitudeInput.value);
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    // Update the badge UI directly
+                    statusSelect.setAttribute('data-original-status', selectedStatus);
+                    const row = form.closest('tr');
+                    const badgeCell = row.querySelector('td:nth-child(5)');
+                    if (badgeCell) {
+                        let newBadgeHTML = '';
+                        if (selectedStatus === 'Retired') {
+                            newBadgeHTML = `<span class="badge bg-danger text-white fw-bold px-3 py-1 rounded-pill"><i class="bi bi-archive me-1 small"></i>Retired</span>`;
+                        } else if (['Active', 'Deployed', 'Functional'].includes(selectedStatus)) {
+                            newBadgeHTML = `<span class="badge bg-forest text-white fw-bold px-3 py-1 rounded-pill"><i class="bi bi-check-circle me-1 small"></i>${selectedStatus}</span>`;
+                        } else if (selectedStatus === 'Under Repair') {
+                            newBadgeHTML = `<span class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill"><i class="bi bi-tools me-1 small"></i>Under Repair</span>`;
+                        } else if (selectedStatus === 'In Storage') {
+                            newBadgeHTML = `<span class="badge bg-secondary text-white fw-bold px-3 py-1 rounded-pill"><i class="bi bi-box-seam me-1 small"></i>In Storage</span>`;
+                        } else {
+                            newBadgeHTML = `<span class="badge bg-light text-dark fw-bold px-3 py-1 rounded-pill">${selectedStatus}</span>`;
+                        }
+                        badgeCell.innerHTML = newBadgeHTML;
+                    }
+                    console.log('Success:', data.message);
+                } else {
+                    alert(data.message || 'An error occurred while updating status.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Network error while updating equipment status.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Save';
+            }
+        });
+    });
+</script>
+{% endblock %}

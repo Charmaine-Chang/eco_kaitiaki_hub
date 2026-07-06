@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% set active_page = 'stock_inventory' %}
+{% block title %}Storage areas{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock_list') }}" class="text-decoration-none text-muted">Stock Inventory</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Storage Areas</li>
+    </ol>
+</nav>
+
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white fw-bold">Add storage area</div>
+            <div class="card-body">
+                <form method="POST" onsubmit="return confirm('Create this storage area?');">
+                    <input type="text" name="storage_area_name" class="form-control mb-3" placeholder="e.g. Base Shed" required maxlength="50">
+                    <button type="submit" class="btn btn-forest rounded-pill fw-bold">Add</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="table-responsive bg-white rounded-4 shadow-sm">
+            <table class="table mb-0">
+                <thead class="table-light"><tr><th class="ps-4">Name</th></tr></thead>
+                <tbody>
+                    {% for sa in storage_areas %}
+                    <tr><td class="ps-4">{{ sa.storage_area_name }}</td></tr>
+                    {% else %}
+                    <tr><td class="ps-4 text-muted">No storage areas yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

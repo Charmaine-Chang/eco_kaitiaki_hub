@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set active_page = 'knowledge_hub' %}
+
+{% block title %}Edit — {{ entry.title }}{% endblock %}
+
+{% block content %}
+<div class="premium-breadcrumb mb-3">
+    <a href="{{ url_for('main.home') }}"><i class="bi bi-house-door breadcrumb-icon"></i> Home</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{{ url_for('knowledge.hub_list') }}">Knowledge Hub</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{{ url_for('knowledge.entry_detail', entry_id=entry.entry_id) }}">{{ entry.title }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="text-dark fw-bold">Edit</span>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4 p-md-5">
+                <h1 class="h4 fw-black text-forest mb-1">Edit knowledge entry</h1>
+                <p class="text-muted small mb-4">Saving creates a snapshot of the previous version in history.</p>
+
+                <form method="post" action="{{ url_for('knowledge.entry_edit', entry_id=entry.entry_id) }}">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Title</label>
+                        <input type="text" name="title" class="form-control rounded-3" maxlength="100" required
+                               value="{{ request.form.get('title', entry.title) }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Category</label>
+                        <input type="text" name="category" class="form-control rounded-3" maxlength="20" required
+                               value="{{ request.form.get('category', entry.category) }}"
+                               placeholder="e.g. Guide, Safety, Resource">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Content</label>
+                        <textarea name="content" class="form-control rounded-3" rows="10">{{ request.form.get('content', entry.content or '') }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Photo URL (optional)</label>
+                        <input type="url" name="photo_url" class="form-control rounded-3"
+                               value="{{ request.form.get('photo_url', entry.photo_url or '') }}"
+                               placeholder="https://…">
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="is_featured" id="is_featured" value="1"
+                               {% if request.method == 'POST' and request.form.get('is_featured') %}checked{% elif request.method != 'POST' and entry.is_featured %}checked{% endif %}>
+                        <label class="form-check-label" for="is_featured">Featured on hub</label>
+                    </div>
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" name="is_published" id="is_published" value="1"
+                               {% if request.method == 'POST' and request.form.get('is_published') %}checked{% elif request.method != 'POST' and entry.is_published %}checked{% endif %}>
+                        <label class="form-check-label" for="is_published">Published (visible in Knowledge Hub)</label>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-forest rounded-pill px-4">Save changes</button>
+                        <a href="{{ url_for('knowledge.entry_detail', entry_id=entry.entry_id) }}" class="btn btn-outline-secondary rounded-pill">Cancel</a>
+                        <a href="{{ url_for('knowledge.entry_history', entry_id=entry.entry_id) }}" class="btn btn-outline-forest rounded-pill ms-auto">
+                            <i class="bi bi-clock-history me-1"></i>History
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

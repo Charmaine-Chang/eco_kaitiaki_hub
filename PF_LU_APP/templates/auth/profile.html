@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% set active_page = 'profile' %}
+
+{% block title %}My Profile - Kaitiaki Hub{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}" class="text-decoration-none text-muted">Home</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">My Profile</li>
+    </ol>
+</nav>
+
+<!-- ── Header with clickable avatar ── -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-4 bg-white rounded-4 shadow-sm border-0">
+            <div class="d-flex align-items-center gap-3">
+                <!-- Clickable Profile Photo -->
+                <div class="position-relative profile-avatar-wrapper" onclick="document.getElementById('photoInput').click();" style="cursor:pointer;">
+                    {% if user.profile_photo %}
+                    <img src="{{ user.profile_photo }}" alt="Profile Photo"
+                         class="rounded-circle shadow-sm" id="avatarPreview"
+                         style="width: 64px; height: 64px; object-fit: cover; border: 3px solid #1a5e20;">
+                    {% else %}
+                    <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" id="avatarPlaceholder"
+                         style="width: 64px; height: 64px; border: 3px solid #1a5e20;">
+                        <span class="fw-black fs-4">{{ user.first_name[0]|upper if user.first_name else '?' }}</span>
+                    </div>
+                    {% endif %}
+                    <!-- Camera overlay -->
+                    <div class="profile-avatar-overlay rounded-circle d-flex align-items-center justify-content-center"
+                         style="position:absolute;top:0;left:0;width:64px;height:64px;background:rgba(0,0,0,0.4);opacity:0;transition:opacity 0.2s;">
+                        <i class="bi bi-camera-fill text-white fs-5"></i>
+                    </div>
+                </div>
+
+                <div class="flex-grow-1">
+                    <h1 class="h4 fw-black text-dark mb-0">{{ user.first_name }} {{ user.last_name }}</h1>
+                    <p class="text-muted mb-0 small">@{{ user.username }}</p>
+                </div>
+
+                <!-- Photo actions (shown when photo exists) -->
+                {% if user.profile_photo %}
+                <form method="POST" class="d-inline">
+                    <input type="hidden" name="action" value="update_photo">
+                    <input type="hidden" name="remove_photo" value="1">
+                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3"
+                            onclick="return confirm('Remove your profile photo?');">
+                        <i class="bi bi-trash me-1"></i>Remove Photo
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            <!-- Hidden photo upload form -->
+            <form method="POST" enctype="multipart/form-data" id="photoForm" class="d-none">
+                <input type="hidden" name="action" value="update_photo">
+                <input type="file" name="profile_photo" id="photoInput" accept="image/png,image/jpeg,image/gif,image/webp"
+                       onchange="document.getElementById('photoForm').submit();">
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- ══ Profile Information ══ -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white py-3 border-bottom-0 px-4">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-person-fill me-2"></i>Profile Information</h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <form method="POST">
+                    <input type="hidden" name="action" value="update_profile">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase ls-1">Username</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-at"></i></span>
+                            <input type="text" class="form-control bg-light border-start-0" value="{{ user.username }}" disabled>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase ls-1">First Name *</label>
+                            <input type="text" name="first_name" class="form-control form-control-sm" value="{{ user.first_name }}" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase ls-1">Last Name *</label>
+                            <input type="text" name="last_name" class="form-control form-control-sm" value="{{ user.last_name }}" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase ls-1">Email *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="email" class="form-control border-start-0" value="{{ user.email }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase ls-1">Phone *</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-telephone"></i></span>
+                                <input type="text" name="phone" class="form-control border-start-0"
+                                       pattern="[0-9]*" title="Please enter only numbers"
+                                       value="{{ user.phone }}" required>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase ls-1">Emergency Contact *</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-shield-exclamation"></i></span>
+                                <input type="text" name="emergency_contact" class="form-control border-start-0"
+                                       pattern="[0-9]*" title="Please enter only numbers"
+                                       value="{{ user.emergency_contact }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-forest w-100 rounded-pill fw-bold py-2 btn-sm">
+                        <i class="bi bi-check2-circle me-2"></i>Update Profile
+                    </button>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Change Password ══ -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white py-3 border-bottom-0 px-4">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-key-fill me-2"></i>Change Password</h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <form method="POST" id="changePasswordForm">
+                    <input type="hidden" name="action" value="change_password">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase ls-1">Current Password</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-lock"></i></span>
+                            <input type="password" name="current_password" id="current_password" class="form-control border-start-0 border-end-0" required>
+                            <button class="btn btn-outline-secondary border bg-light btn-sm" type="button" onclick="togglePassword('current_password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase ls-1">New Password</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-key"></i></span>
+                            <input type="password" name="new_password" id="new_password" class="form-control border-start-0 border-end-0" required oninput="checkRequirements(this.value)">
+                            <button class="btn btn-outline-secondary border bg-light btn-sm" type="button" onclick="togglePassword('new_password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-2 p-2 bg-light rounded-3 border" id="password-requirements">
+                            <p class="mb-1 fw-semibold text-secondary text-uppercase ls-1" style="font-size:0.65rem;">Password must include:</p>
+                            <ul class="list-unstyled mb-0" style="font-size:0.75rem;">
+                                <li id="req-length" class="text-muted mb-1"><i class="bi bi-circle me-2"></i>At least 8 characters</li>
+                                <li id="req-upper" class="text-muted mb-1"><i class="bi bi-circle me-2"></i>One uppercase letter (A–Z)</li>
+                                <li id="req-lower" class="text-muted mb-1"><i class="bi bi-circle me-2"></i>One lowercase letter (a–z)</li>
+                                <li id="req-number" class="text-muted"><i class="bi bi-circle me-2"></i>One number (0–9)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase ls-1">Confirm New Password</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-check2-all"></i></span>
+                            <input type="password" name="confirm_password" id="confirm_password" class="form-control border-start-0 border-end-0" required>
+                            <button class="btn btn-outline-secondary border bg-light btn-sm" type="button" onclick="togglePassword('confirm_password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-forest w-100 rounded-pill fw-bold py-2 btn-sm">
+                        <i class="bi bi-shield-lock me-2"></i>Change Password
+                    </button>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.profile-avatar-wrapper:hover .profile-avatar-overlay {
+    opacity: 1 !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function togglePassword(fieldId, btn) {
+        const field = document.getElementById(fieldId);
+        const icon = btn.querySelector('i');
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            field.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    }
+
+    function checkRequirements(value) {
+        const checks = [
+            { id: 'req-length', test: value.length >= 8 },
+            { id: 'req-upper',  test: /[A-Z]/.test(value) },
+            { id: 'req-lower',  test: /[a-z]/.test(value) },
+            { id: 'req-number', test: /[0-9]/.test(value) },
+        ];
+
+        checks.forEach(({ id, test }) => {
+            const el = document.getElementById(id);
+            const icon = el.querySelector('i');
+            if (test) {
+                el.classList.remove('text-muted');
+                el.classList.add('text-success');
+                icon.classList.replace('bi-circle', 'bi-check-circle-fill');
+            } else {
+                el.classList.remove('text-success');
+                el.classList.add('text-muted');
+                icon.classList.replace('bi-check-circle-fill', 'bi-circle');
+            }
+        });
+    }
+</script>
+{% endblock %}

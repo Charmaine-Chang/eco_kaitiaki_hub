@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set active_page = 'knowledge_hub' %}
+
+{% block title %}Knowledge Hub — {{ group_name }}{% endblock %}
+
+{% block content %}
+<div class="premium-breadcrumb mb-3">
+    <a href="{{ url_for('main.home') }}"><i class="bi bi-house-door breadcrumb-icon"></i> Home</a>
+    <span class="breadcrumb-sep">›</span>
+    {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+    <a href="{{ url_for('admin.admin_dashboard') }}">Dashboard</a>
+    {% elif session.get('role_id') == ROLE_OPERATOR %}
+    <a href="{{ url_for('operator.operator_dashboard') }}">Dashboard</a>
+    {% else %}
+    <a href="{{ url_for('observer.observer_dashboard') }}">Dashboard</a>
+    {% endif %}
+    <span class="breadcrumb-sep">›</span>
+    <span class="text-dark fw-bold">Knowledge Hub</span>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-4 bg-white rounded-4 shadow-sm border-0">
+            <h1 class="h3 fw-black text-forest mb-1"><i class="bi bi-journal-bookmark me-2"></i>Knowledge Hub</h1>
+            <p class="text-muted small mb-0">{{ group_name }} — guides, safety, and field reference</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        {% if entries %}
+        <div class="d-flex flex-column gap-3">
+            {% for e in entries %}
+            <div class="card border-0 shadow-sm rounded-4 {% if e.is_featured %}border-start border-5 border-warning{% endif %}">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                        <div>
+                            <span class="badge bg-success-soft text-forest small me-2">{{ e.category }}</span>
+                            {% if e.is_featured %}<span class="badge bg-warning text-dark small">Featured</span>{% endif %}
+                        </div>
+                        <span class="small text-muted">
+                            {% if e.updated_at %}{{ e.updated_at|date_nz }}{% else %}{{ e.created_at|date_nz }}{% endif %}
+                        </span>
+                    </div>
+                    <h2 class="h5 fw-bold text-dark mb-2">
+                        <a href="{{ url_for('knowledge.entry_detail', entry_id=e.entry_id) }}" class="text-forest text-decoration-none">
+                            {{ e.title }}
+                        </a>
+                    </h2>
+                    <p class="small text-muted mb-2">By {{ e.author_username }}</p>
+                    <p class="card-text text-muted mb-3">{{ (e.content or '')[:280] }}{% if e.content and e.content|length > 280 %}…{% endif %}</p>
+                    <a href="{{ url_for('knowledge.entry_detail', entry_id=e.entry_id) }}" class="btn btn-sm btn-forest rounded-pill">Read entry</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-5 text-center text-muted">
+                <i class="bi bi-journal-x fs-1 d-block mb-3 opacity-50"></i>
+                <p class="mb-0">No published knowledge entries for this group yet.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

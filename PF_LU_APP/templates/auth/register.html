@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Register - PF-LU PRS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-5">
+                <h2 class="text-center mb-4 fw-bold text-forest">Register as an Observer</h2>
+                
+                <form method="post" action="{{ url_for('auth.register') }}">
+                    <!-- Username & Email -->
+                    <div class="mb-3">
+                        <label for="username" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="username" id="username"
+                               value="{{ form_data.get('username', '') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" id="email"
+                               value="{{ form_data.get('email', '') }}" required>
+                    </div>
+
+                    <!-- Name Fields -->
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="first_name" class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="first_name" id="first_name"
+                                   value="{{ form_data.get('first_name', '') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="last_name" id="last_name"
+                                   value="{{ form_data.get('last_name', '') }}" required>
+                        </div>
+                    </div>
+
+                    <!-- Contact Details -->
+                    <div class="mb-3">
+                        <label for="contact_information" class="form-label fw-semibold">Contact Information (Phone) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="contact_information" id="contact_information"
+                               pattern="[0-9]*" title="Please enter only numbers"
+                               value="{{ form_data.get('contact_information', '') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="emergency_contact" class="form-label fw-semibold">Emergency Contact <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="emergency_contact" id="emergency_contact"
+                               pattern="[0-9]*" title="Please enter only numbers"
+                               value="{{ form_data.get('emergency_contact', '') }}" required>
+                    </div>
+
+                    <!-- Password Fields (intentionally not pre-filled for security) -->
+                    <div class="mb-3">
+                        <label for="password" class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="password" id="password" 
+                                   oninput="checkRequirements(this.value)" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2 small password-requirements">
+                            <div id="req-length" class="text-muted mb-1"><i class="bi bi-circle me-1"></i> At least 8 characters</div>
+                            <div id="req-upper" class="text-muted mb-1"><i class="bi bi-circle me-1"></i> At least one uppercase letter</div>
+                            <div id="req-lower" class="text-muted mb-1"><i class="bi bi-circle me-1"></i> At least one lowercase letter</div>
+                            <div id="req-number" class="text-muted mb-1"><i class="bi bi-circle me-1"></i> At least one number</div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="password_confirm" class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="password_confirm" id="password_confirm" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password_confirm', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="d-grid mt-4 justify-content-center">
+                        <button type="submit" class="btn btn-forest btn-lg rounded-pill shadow-sm">Register</button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-4">
+                    <p class="mb-0 text-muted">Already have an account? <a href="{{ url_for('auth.login') }}" class="text-forest fw-semibold text-decoration-none">Log in</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function togglePassword(fieldId, btn) {
+        const field = document.getElementById(fieldId);
+        const icon = btn.querySelector('i');
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            field.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    }
+
+    function checkRequirements(value) {
+        const checks = [
+            { id: 'req-length', test: value.length >= 8 },
+            { id: 'req-upper',  test: /[A-Z]/.test(value) },
+            { id: 'req-lower',  test: /[a-z]/.test(value) },
+            { id: 'req-number', test: /[0-9]/.test(value) },
+        ];
+
+        checks.forEach(({ id, test }) => {
+            const el = document.getElementById(id);
+            const icon = el.querySelector('i');
+            if (test) {
+                el.classList.remove('text-muted');
+                el.classList.add('text-success');
+                icon.classList.replace('bi-circle', 'bi-check-circle-fill');
+            } else {
+                el.classList.remove('text-success');
+                el.classList.add('text-muted');
+                icon.classList.replace('bi-check-circle-fill', 'bi-circle');
+            }
+        });
+    }
+</script>
+{% endblock %}

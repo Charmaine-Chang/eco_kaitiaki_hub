@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block title %}Select Group - Kaitiaki Hub{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), 
+                    url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=2560&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    .selection-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+
+    .selection-card {
+        border-radius: 24px;
+        border: 1px solid rgba(26, 94, 32, 0.1);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        width: 100%;
+        max-width: 600px;
+        transition: max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .group-item {
+        border-radius: 16px;
+        border: 2px solid #f1f5f9;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        background: white;
+    }
+
+    .group-item:hover {
+        border-color: #1a5e20;
+        background-color: #f0fdf4;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(26, 94, 32, 0.1);
+    }
+
+    .group-radio:checked + .group-item {
+        border-color: #1a5e20;
+        background-color: #f0fdf4;
+    }
+
+    .role-badge {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+    }
+
+    .btn-forest {
+        padding: 14px;
+        border-radius: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .ls-1 { letter-spacing: 1px; }
+    .fw-black { font-weight: 900; }
+
+    /* Expandable Right Column Styles */
+    .right-col-pane {
+        opacity: 0;
+        transform: translateX(-20px);
+        transition: all 0.4s ease;
+    }
+    .right-col-pane.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    .other-group-item {
+        border-radius: 12px;
+        border: 2px solid #f1f5f9;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: white;
+    }
+    .other-group-item:hover {
+        border-color: #1a5e20;
+        background-color: #f0fdf4;
+        transform: translateY(-1px);
+    }
+    .other-group-item.selected {
+        border-color: #1a5e20;
+        background-color: #f0fdf4;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set is_super = session.is_super_admin %}
+{% set system_memberships = memberships | selectattr('group_name', 'equalto', 'System Management') | list %}
+{% set other_memberships = memberships | rejectattr('group_name', 'equalto', 'System Management') | list %}
+
+<div class="selection-container">
+    <div class="selection-card p-4 p-md-5" id="selectionCard">
+        <div class="row g-4">
+            <!-- Left Column (Always Visible) -->
+            <div class="col-12" id="leftColumn">
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Eco Kaitiaki Logo" style="height: 60px; width: auto;" class="mb-2">
+                    <h2 class="h4 fw-black text-forest ls-1 mb-1">Select Your Context</h2>
+                    <p class="text-muted small mb-0">Choose the conservation group you wish to manage today</p>
+                </div>
+
+                <form method="post" action="{{ url_for('auth.select_group') }}" id="groupSelectForm">
+                    <div class="row g-2 mb-4">
+                        {% if is_super and system_memberships %}
+                            <!-- Super Admin Collapsed View -->
+                            {% set sys_m = system_memberships[0] %}
+                            <div class="col-12">
+                                <input type="radio" class="btn-check group-radio" name="group_id" id="group_{{ sys_m.group_id }}" 
+                                       value="{{ sys_m.group_id }}" checked>
+                                <label class="group-item p-3 d-flex align-items-center justify-content-between w-100" for="group_{{ sys_m.group_id }}" data-type="system">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                                             style="width: 40px; height: 40px; min-width: 40px;">
+                                            <i class="bi bi-shield-lock-fill"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold text-dark">{{ sys_m.group_name }}</h6>
+                                            <p class="mb-0 text-muted small text-truncate" style="max-width: 250px;">
+                                                System administration and configurations
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="role-badge bg-forest text-white shadow-sm fw-bold">
+                                            {{ sys_m.role_name }}
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="group-item p-3 d-flex align-items-center justify-content-between w-100" id="groupManagementTrigger">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                                             style="width: 40px; height: 40px; min-width: 40px; background-color: #2e7d32 !important;">
+                                            <i class="bi bi-people-fill"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold text-dark">Group Management</h6>
+                                            <p class="mb-0 text-muted small text-truncate" id="selectedGroupName" style="max-width: 250px;">
+                                                Select a specific group to manage
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end d-flex align-items-center gap-2">
+                                        <span class="badge bg-success" id="activeGroupBadge" style="display:none; font-size:0.7rem; text-transform:uppercase;">Selected</span>
+                                        <button type="button" class="btn btn-sm btn-outline-forest rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" id="expandBtn">
+                                            <i class="bi bi-plus-lg fs-5" id="expandIcon"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hidden inputs for other groups for JS checking -->
+                            {% for membership in other_memberships %}
+                            <input type="radio" class="btn-check group-radio d-none" name="group_id" id="group_{{ membership.group_id }}" 
+                                   value="{{ membership.group_id }}">
+                            {% endfor %}
+
+                        {% else %}
+                            <!-- Normal Group Selection for non-superadmin users -->
+                            {% for membership in memberships %}
+                            <div class="col-12">
+                                <input type="radio" class="btn-check group-radio" name="group_id" id="group_{{ membership.group_id }}" 
+                                       value="{{ membership.group_id }}" {% if loop.first %}checked{% endif %}>
+                                <label class="group-item p-3 d-flex align-items-center justify-content-between w-100" for="group_{{ membership.group_id }}">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                                             style="width: 40px; height: 40px; min-width: 40px;">
+                                            <i class="bi bi-people-fill"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold text-dark">{{ membership.group_name }}</h6>
+                                            <p class="mb-0 text-muted small text-truncate" style="max-width: 250px;">
+                                                {{ membership.description[:60] }}{% if membership.description|length > 60 %}...{% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="role-badge bg-forest text-white shadow-sm fw-bold">
+                                            {{ membership.role_name }}
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-forest shadow-sm text-white py-2">
+                            Enter Workspace <i class="bi bi-box-arrow-in-right ms-2"></i>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-4 pt-3 border-top">
+                    <a href="{{ url_for('auth.logout') }}" class="text-muted small fw-medium text-decoration-none hover-forest">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Login
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Column (Group List, shown on expansion for Super Admin) -->
+            {% if is_super %}
+            <div class="col-md-6 d-none flex-column border-start right-col-pane" id="rightColumn">
+                <div class="ps-md-3">
+                    <h5 class="fw-bold text-forest mb-3">Choose Group to Manage</h5>
+                    <div class="overflow-y-auto pe-1" style="max-height: 380px;">
+                        <div class="row g-2">
+                            {% for membership in other_memberships %}
+                            <div class="col-12">
+                                <div class="other-group-item p-3 d-flex align-items-center justify-content-between w-100" 
+                                     data-group-id="{{ membership.group_id }}" data-group-name="{{ membership.group_name }}">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-success-soft text-forest rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                                             style="width: 36px; height: 36px; min-width: 36px;">
+                                            <i class="bi bi-building"></i>
+                                        </div>
+                                        <div style="max-width: 180px;">
+                                            <h6 class="mb-0 fw-bold text-dark text-truncate" style="font-size: 0.85rem;">{{ membership.group_name }}</h6>
+                                            <span class="text-muted small">Super Admin</span>
+                                        </div>
+                                    </div>
+                                    <i class="bi bi-check-circle-fill text-forest fs-5 d-none select-check-icon"></i>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const isSuperAdmin = {{ 'true' if is_super else 'false' }};
+        
+        if (!isSuperAdmin) {
+            // Standard visual feedback for non-superadmin users
+            document.querySelectorAll('.group-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const radioId = item.getAttribute('for');
+                    if (radioId) {
+                        const rb = document.getElementById(radioId);
+                        if (rb) rb.checked = true;
+                    }
+                });
+            });
+            return;
+        }
+
+        // Superadmin specific JS
+        const selectionCard = document.getElementById('selectionCard');
+        const leftColumn = document.getElementById('leftColumn');
+        const rightColumn = document.getElementById('rightColumn');
+        const expandBtn = document.getElementById('expandBtn');
+        const expandIcon = document.getElementById('expandIcon');
+        const selectedGroupName = document.getElementById('selectedGroupName');
+        const activeGroupBadge = document.getElementById('activeGroupBadge');
+        
+        let rightColumnOpen = false;
+
+        function openRightColumn() {
+            selectionCard.style.maxWidth = '1000px';
+            leftColumn.className = 'col-12 col-md-6';
+            setTimeout(() => {
+                rightColumn.classList.remove('d-none');
+                rightColumn.classList.add('d-flex');
+                setTimeout(() => {
+                    rightColumn.classList.add('show');
+                }, 50);
+            }, 150);
+            expandIcon.className = 'bi bi-dash-lg fs-5';
+            rightColumnOpen = true;
+        }
+
+        function closeRightColumn() {
+            rightColumn.classList.remove('show');
+            setTimeout(() => {
+                rightColumn.classList.remove('d-flex');
+                rightColumn.classList.add('d-none');
+                leftColumn.className = 'col-12';
+                selectionCard.style.maxWidth = '600px';
+            }, 150);
+            expandIcon.className = 'bi bi-plus-lg fs-5';
+            rightColumnOpen = false;
+        }
+
+        document.getElementById('groupManagementTrigger').addEventListener('click', function(e) {
+            if (!rightColumnOpen) {
+                openRightColumn();
+            }
+        });
+
+        expandBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (rightColumnOpen) {
+                closeRightColumn();
+            } else {
+                openRightColumn();
+            }
+        });
+
+        // Group Selector inside expansion column
+        document.querySelectorAll('.other-group-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // Clear other highlights
+                document.querySelectorAll('.other-group-item').forEach(i => {
+                    i.classList.remove('selected', 'border-success');
+                    i.querySelector('.select-check-icon').classList.add('d-none');
+                });
+
+                // Highlight selected
+                this.classList.add('selected', 'border-success');
+                this.querySelector('.select-check-icon').classList.remove('d-none');
+
+                // Check hidden radio button
+                const groupId = this.getAttribute('data-group-id');
+                const radio = document.getElementById('group_' + groupId);
+                if (radio) {
+                    radio.checked = true;
+                }
+
+                // Update text
+                const groupName = this.getAttribute('data-group-name');
+                selectedGroupName.textContent = "Selected: " + groupName;
+                selectedGroupName.classList.remove('text-muted');
+                selectedGroupName.classList.add('text-forest', 'fw-bold');
+                activeGroupBadge.style.display = 'inline-block';
+            });
+        });
+
+        // System Management click reset
+        document.querySelector('.group-item[data-type="system"]').addEventListener('click', function() {
+            closeRightColumn();
+            
+            // Clear choices
+            document.querySelectorAll('.other-group-item').forEach(i => {
+                i.classList.remove('selected', 'border-success');
+                i.querySelector('.select-check-icon').classList.add('d-none');
+            });
+
+            selectedGroupName.textContent = "Select a specific group to manage";
+            selectedGroupName.classList.remove('text-forest', 'fw-bold');
+            selectedGroupName.classList.add('text-muted');
+            activeGroupBadge.style.display = 'none';
+
+            const radioId = this.getAttribute('for');
+            document.getElementById(radioId).checked = true;
+        });
+    });
+</script>
+{% endblock %}

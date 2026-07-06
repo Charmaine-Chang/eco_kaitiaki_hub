@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% set active_page = 'global_metadata' %}
+{% block title %}Manage Trap Types - PFLU{% endblock %}
+
+{% block content %}
+<!-- ── Breadcrumbs ────────────────────────────────────────── -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Manage Trap Types</li>
+    </ol>
+</nav>
+
+<!-- Page Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-3 bg-white rounded-4 shadow-sm border-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <div>
+                <h1 class="h3 fw-black text-forest mb-0">
+                    <i class="bi bi-tools me-2"></i>Manage Trap Types
+                </h1>
+                <p class="text-muted small mb-0 ls-1">Define hardware models and equipment types available in the system.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white">Add New Trap Type</div>
+    <div class="card-body">
+        <form method="POST" class="row g-3 align-items-center" id="addTrapTypeForm"
+              onsubmit="
+                var name = document.getElementById('trap_type_name_input').value.trim();
+                if (!name) return false;
+                return confirm('Add trap type &quot;' + name + '&quot;?');
+              ">
+            <input type="hidden" name="action" value="add">
+            <div class="col-md-6">
+                <input type="text" id="trap_type_name_input" name="trap_type_name" class="form-control"
+                       placeholder="Enter trap model name (e.g., DOC 200, Timms, Victor)" required>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-success">Add Trap Type</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive bg-white rounded shadow-sm">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Trap Type Name</th>
+                <th class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tt in trap_type_list %}
+            <tr>
+                <td class="text-muted small">{{ tt.trap_type_id }}</td>
+                <td>
+                    <span class="traptype-label-{{ tt.trap_type_id }}">{{ tt.trap_type_name }}</span>
+                    <form method="POST" class="d-none traptype-form-{{ tt.trap_type_id }}" style="display:inline;"
+                          onsubmit="return confirm('Save changes to this trap type?');">
+                        <input type="hidden" name="action" value="edit">
+                        <input type="hidden" name="trap_type_id" value="{{ tt.trap_type_id }}">
+                        <input type="text" name="trap_type_name" value="{{ tt.trap_type_name }}"
+                               class="form-control form-control-sm d-inline-block" style="width:220px" required maxlength="50">
+                        <button type="submit" class="btn btn-success btn-sm ms-1">Save</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                onclick="cancelEdit('traptype', '{{ tt.trap_type_id }}')">Cancel</button>
+                    </form>
+                </td>
+                <td class="text-end">
+                    <span class="traptype-label-{{ tt.trap_type_id }}">
+                        <button class="btn btn-outline-primary btn-sm me-1"
+                                onclick="startEdit('traptype', '{{ tt.trap_type_id }}')"><i class="bi bi-pencil"></i> Edit</button>
+                        <form method="POST" style="display:inline;"
+                              onsubmit="return confirm('Are you sure you want to delete this trap type?');">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="trap_type_id" value="{{ tt.trap_type_id }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Delete</button>
+                        </form>
+                    </span>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-4">No trap types added yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function startEdit(type, id) {
+    document.querySelectorAll('.' + type + '-label-' + id).forEach(el => el.classList.add('d-none'));
+    document.querySelector('.' + type + '-form-' + id).classList.remove('d-none');
+    document.querySelector('.' + type + '-form-' + id + ' input[type=text]').focus();
+}
+function cancelEdit(type, id) {
+    document.querySelector('.' + type + '-form-' + id).classList.add('d-none');
+    document.querySelectorAll('.' + type + '-label-' + id).forEach(el => el.classList.remove('d-none'));
+}
+</script>
+{% endblock %}

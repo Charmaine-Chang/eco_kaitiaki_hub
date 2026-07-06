@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% set active_page = 'stock_inventory' %}
+{% block title %}Manage inventory - {{ item.item_name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.item_detail', item_id=item.item_id) }}" class="text-decoration-none text-muted">{{ item.item_name }}</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Manage inventory</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                <h1 class="h4 fw-black text-forest mb-3">Manage inventory</h1>
+                <p class="text-muted small">Current location: <strong>{{ current_loc }}</strong></p>
+                <form method="POST" id="moveForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">Action</label>
+                        <select name="action" id="actionType" class="form-select" required>
+                            <option value="move">Move / Manage location</option>
+                            <option value="consume">Record consumption</option>
+                            <option value="receive">Record receipt</option>
+                        </select>
+                    </div>
+
+                    <div id="moveControls">
+                        <label class="form-label fw-bold small text-uppercase">Destinations</label>
+                        <div id="destinations">
+                            <div class="destination-row mb-3 row g-2 align-items-end">
+                                <div class="col-4">
+                                    <select name="dest_type" class="form-select dest-type">
+                                        <option value="">Select type?</option>
+                                        <option value="storage">Storage area</option>
+                                        <option value="line">Line (field)</option>
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <select name="dest_id" class="form-select dest-id">
+                                        <option value="">Select destination?</option>
+                                        <optgroup label="Storage areas">
+                                            {% for sa in storage_areas %}
+                                            <option data-type="storage" value="{{ sa.storage_area_id }}">{{ sa.storage_area_name }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                        <optgroup label="Lines">
+                                            {% for ln in lines %}
+                                            <option data-type="line" value="{{ ln.line_id }}">{{ ln.line_name }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" step="any" min="0" max="{{ item.quantity }}" name="move_qty" class="form-control move-qty" placeholder="Qty to move">
+                                </div>
+                                <div class="col-1 text-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-dest" title="Remove">×</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="button" id="addDestination" class="btn btn-sm btn-outline-forest">Add destination</button>
+                            <div class="small text-muted mt-2">Leave quantity blank to move the entire item. Total moved must not exceed current quantity.</div>
+                        </div>
+                    </div>
+
+                    <div id="adjustControls" style="display:none;">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Quantity to adjust</label>
+                            <input type="number" step="any" min="0" max="{{ item.quantity }}" name="adjust_qty" class="form-control" placeholder="Amount to consume/receive">
+                        </div>
+                        <div class="mb-3 small text-muted">Current quantity: <strong>{{ item.quantity }}</strong>{% if item.unit_of_measure %} {{ item.unit_of_measure }}{% endif %}</div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label class="form-label fw-bold small text-uppercase">Comment (optional)</label>
+                        <textarea name="comment" class="form-control" rows="2" placeholder="Add a note about this move or adjustment (optional)"></textarea>
+                    </div>
+
+                    <input type="hidden" name="confirmed" value="0">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-forest rounded-pill fw-bold">Review</button>
+                        <a href="{{ url_for('inventory.item_detail', item_id=item.item_id) }}" class="btn btn-outline-forest rounded-pill fw-bold">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const actionSelect = document.getElementById('actionType');
+const moveControls = document.getElementById('moveControls');
+const adjustControls = document.getElementById('adjustControls');
+// destination controls are per-row; no single destType element
+const addDestinationBtn = document.getElementById('addDestination');
+const destinationsContainer = document.getElementById('destinations');
+
+function makeRowListeners(row) {
+    const destId = row.querySelector('.dest-id');
+    const removeBtn = row.querySelector('.remove-dest');
+    removeBtn.addEventListener('click', () => row.remove());
+    // ensure option data-type matches selection
+    destId.addEventListener('change', function() {
+        const opt = this.options[this.selectedIndex];
+        if (!opt) return;
+        const t = opt.getAttribute('data-type');
+        const typeSelect = row.querySelector('.dest-type');
+        if (t) typeSelect.value = t;
+    });
+}
+
+function updateControls() {
+    const action = actionSelect.value;
+    if (action === 'move') {
+        moveControls.style.display = 'block';
+        adjustControls.style.display = 'none';
+    } else {
+        moveControls.style.display = 'none';
+        adjustControls.style.display = 'block';
+    }
+    // nothing to reset for per-row destination controls
+}
+
+
+actionSelect.addEventListener('change', updateControls);
+
+// initialize first row listeners
+document.querySelectorAll('.destination-row').forEach(r => makeRowListeners(r));
+
+addDestinationBtn.addEventListener('click', function() {
+    const template = document.querySelector('.destination-row');
+    const clone = template.cloneNode(true);
+    clone.querySelector('.move-qty').value = '';
+    destinationsContainer.appendChild(clone);
+    makeRowListeners(clone);
+});
+
+// initialize
+updateControls();
+</script>
+{% endblock %}

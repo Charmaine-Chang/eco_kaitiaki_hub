@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Log In - Eco Kaitiaki Hub{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        /* Subtle forest background with overlay */
+        background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), 
+                    url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=2560&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    .login-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+
+    .login-card {
+        border-radius: 24px;
+        border: 1px solid rgba(26, 94, 32, 0.1);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        width: 100%;
+        max-width: 440px;
+    }
+
+    .form-control {
+        border-radius: 12px;
+        padding: 12px 16px;
+        border: 1.5px solid #e2e8f0;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .form-control:focus {
+        border-color: #1a5e20;
+        box-shadow: 0 0 0 4px rgba(26, 94, 32, 0.1);
+        color: #1a5e20;
+    }
+
+    #username, #password, #username:focus, #password:focus {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: #e2e8f0 !important;
+    }
+
+    .btn-forest {
+        padding: 12px;
+        border-radius: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-forest:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(26, 94, 32, 0.2);
+    }
+
+    .forgot-password {
+        font-size: 0.85rem;
+        color: #64748b;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .forgot-password:hover {
+        color: #1a5e20;
+    }
+
+    .form-check-input:checked {
+        background-color: #1a5e20;
+        border-color: #1a5e20;
+    }
+
+    .alert-in-card {
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+        border: 0;
+        background-color: #fef2f2;
+        color: #991b1b;
+    }
+    
+    .alert-in-card.alert-success {
+        background-color: #f0fdf4;
+        color: #166534;
+    }
+
+    .ls-1 { letter-spacing: 1px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card p-4 p-md-5 position-relative">
+        <div class="text-center mt-3 mb-3">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Eco Kaitiaki Logo" style="height: 70px; width: auto;" class="mb-2">
+            <p class="text-muted small mb-0">Guardian of Aotearoa's Wildlife</p>
+        </div>
+
+        <!-- In-Card Alerts -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-in-card alert-{{ category if category != 'message' else 'info' }} d-flex align-items-center gap-2 fade show" role="alert">
+                <i class="bi {% if category == 'success' %}bi-check-circle{% else %}bi-exclamation-circle{% endif %}"></i>
+                <div>{{ message }}</div>
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('auth.login') }}" id="loginForm">
+            <!-- Username -->
+            <div class="mb-3">
+                <label for="username" class="form-label small fw-bold text-uppercase ls-1 text-muted">Username</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 rounded-start-3 text-muted"><i class="bi bi-person"></i></span>
+                    <input type="text" class="form-control border-start-0 ps-0" name="username" id="username" 
+                           value="{{ prefilled_username }}" required autofocus placeholder="Enter your username">
+                </div>
+            </div>
+
+            <!-- Password -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label for="password" class="form-label small fw-bold text-uppercase ls-1 text-muted mb-0">Password</label>
+                    <a href="#" class="forgot-password fw-semibold" onclick="alert('Please contact your System Administrator to reset your password.')">Forgot Password?</a>
+                </div>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 rounded-start-3 text-muted"><i class="bi bi-lock"></i></span>
+                    <input type="password" class="form-control border-start-0 border-end-0 ps-0" name="password" id="password" required placeholder="••••••••">
+                    <button class="btn btn-white border border-start-0 rounded-end-3 text-muted px-3" type="button" id="toggle-password" tabindex="-1">
+                        <i class="bi bi-eye" id="toggle-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Remember Me -->
+            <div class="mb-4 d-flex align-items-center">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="remember_me" id="rememberMe">
+                    <label class="form-check-label small fw-medium text-muted" for="rememberMe">
+                        Keep me logged in
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="d-grid mb-4">
+                <button type="submit" class="btn btn-forest shadow-sm text-white">
+                    Access Hub <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center pt-2 border-top">
+            <p class="mb-0 text-muted small fw-medium">
+                New to the platform? 
+                <a href="{{ url_for('auth.register') }}" class="fw-bold text-forest text-decoration-none ms-1">Create an Account</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Password Toggle
+    document.getElementById('toggle-password').addEventListener('click', function () {
+        const input = document.getElementById('password');
+        const icon = document.getElementById('toggle-icon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    });
+
+    // Session Security Flag
+    document.getElementById('loginForm').addEventListener('submit', function () {
+        sessionStorage.setItem('pf_tab_active', '1');
+    });
+</script>
+{% endblock %}

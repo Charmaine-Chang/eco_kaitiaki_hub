@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% set active_page = 'dashboard' %}
+{% block title %}Observer Dashboard — Eco Kaitiaki Hub{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+    #groupBoundaryMap { height: 100%; width: 100%; border-radius: 12px; z-index: 1; }
+.ls-1 { letter-spacing: 0.5px; }
+    .fw-black { font-weight: 900; }
+    .smaller { font-size: 0.75rem; }
+    .kpi-card { transition: transform 0.2s; }
+    .kpi-card:hover { transform: translateY(-2px); }
+    .kpi-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; font-size: 1.2rem;
+    }
+    .admin-nav-btn { transition: all 0.2s; }
+    .admin-nav-btn:hover {
+        background-color: #fff !important;
+        border-color: #198754 !important;
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Observer Dashboard</li>
+    </ol>
+</nav>
+
+<!-- Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-4 bg-white rounded-4 shadow-sm border-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h1 class="h3 fw-black text-forest mb-1">Welcome, {{ user.first_name }}!</h1>
+                <p class="text-muted small mb-0">
+                    <span class="badge bg-success-soft text-forest border border-success-subtle fw-semibold rounded-pill px-3">
+                        <i class="bi bi-eye me-1"></i>Observer
+                    </span>
+                    <span class="ms-2">You have read-only access to group data.</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+            <div class="card-body p-3 d-flex align-items-center">
+                <div class="kpi-icon bg-success-soft text-forest me-3">
+                    <i class="bi bi-geo-alt"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Active Lines</div>
+                    <div class="h4 fw-black mb-0">{{ stats.total_lines if stats else '—' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+            <div class="card-body p-3 d-flex align-items-center">
+                <div class="kpi-icon bg-success-soft text-forest me-3">
+                    <i class="bi bi-gear-wide-connected"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Active Traps</div>
+                    <div class="h4 fw-black mb-0">{{ stats.total_traps if stats else '—' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+            <div class="card-body p-3 d-flex align-items-center">
+                <div class="kpi-icon bg-success-soft text-forest me-3">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Group Members</div>
+                    <div class="h4 fw-black mb-0">{{ stats.total_members if stats else '—' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Links + Map + Info -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-header bg-white py-3 border-bottom-0 px-4">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-compass me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body p-3 pt-0">
+                <p class="text-muted small mb-3">As an Observer, you can browse all operational data for this group.</p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('observer.view_lines') }}" class="btn btn-light text-start py-2 px-3 rounded-3 border admin-nav-btn small">
+                        <i class="bi bi-geo-alt text-success me-2"></i>Browse Infrastructure Lines
+                    </a>
+                    <a href="{{ url_for('observer.view_catches') }}" class="btn btn-light text-start py-2 px-3 rounded-3 border admin-nav-btn small">
+                        <i class="bi bi-clipboard-data text-success me-2"></i>View Catch Records
+                    </a>
+                    <a href="{{ url_for('observer.data_graphs') }}" class="btn btn-light text-start py-2 px-3 rounded-3 border admin-nav-btn small">
+                        <i class="bi bi-bar-chart-line text-success me-2"></i>Data Graphs & Insights
+                    </a>
+                    <a href="{{ url_for('main.knowledge_hub') }}" class="btn btn-light text-start py-2 px-3 rounded-3 border admin-nav-btn small">
+                        <i class="bi bi-lightbulb text-success me-2"></i>Knowledge Hub
+                    </a>
+                    {% if session.get('current_group_id') %}
+                    <a href="{{ url_for('updates.updates_list', group_id=session.get('current_group_id')) }}" class="btn btn-light text-start py-2 px-3 rounded-3 border admin-nav-btn small">
+                        <i class="bi bi-megaphone text-success me-2"></i>Group Updates
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-header bg-white py-3 border-bottom-0 px-4 d-flex align-items-center justify-content-between">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-map me-2"></i>Group Boundary Map</h6>
+                {% if boundary_geojson %}
+                <span class="badge bg-success-soft text-forest border border-success-subtle fw-semibold rounded-pill px-3" style="font-size:0.7rem;">
+                    <i class="bi bi-bounding-box-circles me-1"></i>Boundary Active
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0 position-relative" style="height: 100%; min-height: 260px;">
+                <div id="groupBoundaryMap"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white py-3 border-bottom-0 px-4">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-info-circle me-2"></i>Your Role</h6>
+            </div>
+            <div class="card-body p-3 pt-0">
+                <p class="text-muted small mb-3">Observers have <strong>read-only</strong> access. You can view all data but cannot add or edit records.</p>
+                <ul class="list-unstyled small text-muted mb-3">
+                    <li class="mb-1"><i class="bi bi-check-circle text-success me-2"></i>View trap lines and catches</li>
+                    <li class="mb-1"><i class="bi bi-check-circle text-success me-2"></i>Browse data graphs and statistics</li>
+                    <li class="mb-1"><i class="bi bi-check-circle text-success me-2"></i>Read group updates and knowledge hub</li>
+                    <li class="mb-1"><i class="bi bi-x-circle text-danger me-2"></i>Cannot add or edit catch records</li>
+                    <li class="mb-1"><i class="bi bi-x-circle text-danger me-2"></i>Cannot manage group settings</li>
+                </ul>
+                <div class="border-top pt-3">
+                    <p class="text-muted small mb-2">Want to do more? Apply to become an Operator:</p>
+                    <form action="{{ url_for('auth.apply_coordinator', group_id=session.get('current_group_id')) }}" method="POST" onsubmit="return confirm('Apply to become an Operator for this group?');">
+                        <button type="submit" class="btn btn-outline-success rounded-pill fw-bold w-100 btn-sm">
+                            <i class="bi bi-arrow-up-circle me-1"></i>Apply for Operator Role
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.ls-1 { letter-spacing: 0.5px; }
+.fw-black { font-weight: 900; }
+.smaller { font-size: 0.75rem; }
+.kpi-card { transition: transform 0.2s; }
+.kpi-card:hover { transform: translateY(-2px); }
+.kpi-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 1.2rem;
+}
+.admin-nav-btn { transition: all 0.2s; }
+.admin-nav-btn:hover {
+    background-color: #fff !important;
+    border-color: #198754 !important;
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const map = L.map('groupBoundaryMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let hasBoundaryBounds = false;
+    let boundaryLayer = null;
+
+    {% if boundary_geojson %}
+    try {
+        const boundaryGeo = {{ boundary_geojson | safe }};
+        if (boundaryGeo && (boundaryGeo.type === 'Polygon' || boundaryGeo.type === 'MultiPolygon')) {
+            boundaryLayer = L.geoJSON(boundaryGeo, {
+                style: {
+                    color: '#3E6A44',
+                    fillColor: '#3E6A44',
+                    fillOpacity: 0.12,
+                    weight: 3,
+                    dashArray: '5, 5'
+                }
+            }).addTo(map);
+            hasBoundaryBounds = true;
+        }
+    } catch (e) {
+        console.error("Error drawing boundary polygon:", e);
+    }
+    {% endif %}
+
+    const centerLat = {{ group_latitude if group_latitude is not none else 'null' }};
+    const centerLng = {{ group_longitude if group_longitude is not none else 'null' }};
+
+    if (hasBoundaryBounds && boundaryLayer) {
+        map.fitBounds(boundaryLayer.getBounds(), {padding: [30, 30]});
+    } else if (centerLat !== null && centerLng !== null) {
+        map.setView([centerLat, centerLng], 12);
+    } else {
+        map.setView([-43.642, 172.468], 10);
+    }
+});
+</script>
+{% endblock %}

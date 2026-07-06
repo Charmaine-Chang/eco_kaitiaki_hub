@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% set active_page = 'retired_assets' %}
+
+{% block title %}Retired Assets - Eco Kaitiaki{% endblock %}
+
+{% block extra_head %}
+<style>
+    .asset-tab-link {
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1rem 1.5rem !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        border: none !important;
+        background: #f1f5f9 !important;
+        margin-right: 4px;
+    }
+    .asset-tab-link.active {
+        background: #fff !important;
+        color: #1a5e20 !important;
+        box-shadow: 0 -4px 10px rgba(0,0,0,0.03);
+    }
+    .tab-content-container {
+        background: #fff;
+        border-radius: 0 16px 16px 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Breadcrumbs -->
+    <div class="premium-breadcrumb mb-4">
+        <a href="{{ url_for('main.home') }}">
+            <i class="bi bi-house-door breadcrumb-icon"></i> Home
+        </a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="text-dark fw-bold">Retired Assets</span>
+    </div>
+
+    <!-- Header Section -->
+    <div class="row align-items-end mb-4 g-3">
+        <div class="col-md-8">
+            <h1 class="h3 fw-black text-forest mb-1">Retired Assets Dashboard</h1>
+            <p class="text-muted mb-0">Manage decommissioned infrastructure and equipment for your organisation.</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('admin.view_lines') }}" class="btn btn-outline-forest rounded-pill px-4 fw-bold">
+                <i class="bi bi-arrow-left me-2"></i>Active Lines
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <ul class="nav nav-tabs border-0" id="retiredTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link asset-tab-link active" id="lines-tab" data-bs-toggle="tab" data-bs-target="#lines" type="button" role="tab">
+                <i class="bi bi-geo-alt me-2"></i>Retired Lines ({{ retired_lines|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link asset-tab-link" id="traps-tab" data-bs-toggle="tab" data-bs-target="#traps" type="button" role="tab">
+                <i class="bi bi-crosshair2 me-2"></i>Traps ({{ retired_traps|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link asset-tab-link" id="bait-tab" data-bs-toggle="tab" data-bs-target="#bait" type="button" role="tab">
+                <i class="bi bi-box-seam me-2"></i>Bait Stations ({{ retired_bait_stations|length }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content tab-content-container p-0" id="retiredTabsContent">
+        <!-- Lines Tab -->
+        <div class="tab-pane fade show active" id="lines" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3">Line Name</th>
+                            <th>Organisation</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in retired_lines %}
+                        <tr>
+                            <td class="ps-4 fw-bold text-dark">{{ line.line_name }}</td>
+                            <td><span class="badge bg-success-soft text-success border border-success-subtle rounded-pill">{{ current_group_name }}</span></td>
+                            <td class="text-end pe-4">
+                                <form method="POST" action="{{ url_for('admin.action_restore_line', line_id=line.line_id) }}" class="d-inline" onsubmit="return confirm('Restore this line to active status?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-forest rounded-pill px-3">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center py-5 text-muted">
+                                <i class="bi bi-info-circle fs-2 d-block mb-2 opacity-25"></i>
+                                No retired infrastructure lines found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Traps Tab -->
+        <div class="tab-pane fade" id="traps" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3">Trap Code</th>
+                            <th>Type</th>
+                            <th>Line</th>
+                            <th>Coordinates</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trap in retired_traps %}
+                        <tr>
+                            <td class="ps-4 fw-bold">#{{ trap.trap_code }}</td>
+                            <td>{{ trap.trap_type_name }}</td>
+                            <td>{{ trap.line_name }}</td>
+                            <td class="small text-muted">{{ (trap.latitude|round(5)) if trap.latitude else '0.00' }}, {{ (trap.longitude|round(5)) if trap.longitude else '0.00' }}</td>
+                            <td class="text-end pe-4">
+                                <form method="POST" action="{{ url_for('admin.action_restore_trap', trap_code=trap.trap_code) }}" class="d-inline" onsubmit="return confirm('Restore this trap to active status?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-forest rounded-pill px-3">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-info-circle fs-2 d-block mb-2 opacity-25"></i>
+                                No retired traps found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Bait Stations Tab -->
+        <div class="tab-pane fade" id="bait" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3">Bait Station Code</th>
+                            <th>Type</th>
+                            <th>Line</th>
+                            <th>Coordinates</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bs in retired_bait_stations %}
+                        <tr>
+                            <td class="ps-4 fw-bold">#{{ bs.bait_station_code }}</td>
+                            <td>{{ bs.bait_station_type_name }}</td>
+                            <td>{{ bs.line_name }}</td>
+                            <td class="small text-muted">{{ (bs.latitude|round(5)) if bs.latitude else '0.00' }}, {{ (bs.longitude|round(5)) if bs.longitude else '0.00' }}</td>
+                            <td class="text-end pe-4">
+                                <form method="POST" action="{{ url_for('admin.action_restore_bait_station', bait_station_code=bs.bait_station_code) }}" class="d-inline" onsubmit="return confirm('Restore this bait station to active status?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-forest rounded-pill px-3">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-info-circle fs-2 d-block mb-2 opacity-25"></i>
+                                No retired bait stations found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

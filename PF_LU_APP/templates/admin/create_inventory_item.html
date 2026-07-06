@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% set active_page = 'inventory' %}
+
+{% block title %}Register New Inventory Item - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 py-4">
+    <div class="premium-breadcrumb mb-4">
+        <a href="{{ url_for('main.home') }}">
+            <i class="bi bi-house-door breadcrumb-icon"></i> Home
+        </a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="{{ url_for('admin.view_inventory') }}" class="text-decoration-none text-muted">Equipment Inventory</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="text-dark fw-bold">Register New Inventory Item</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h2 class="h4 fw-black mb-3">Register New Inventory Item</h2>
+                    <p class="text-muted mb-4">Add new inventory items and organize them by storage location.</p>
+
+                    <form method="POST" action="{{ url_for('admin.add_inventory_item') }}">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Inventory Type <span class="text-danger">*</span></label>
+                            <select name="item_category" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                <option value="" disabled selected>Select type...</option>
+                                <option value="Bait">Bait</option>
+                                <option value="Equipment">Equipment</option>
+                                <option value="Trap">Trap</option>
+                                <option value="Bait Station">Bait Station</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Item Name <span class="text-danger">*</span></label>
+                            <input type="text" name="item_name" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" placeholder="e.g. Peanut butter, Safety gloves" required>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" name="quantity" step="0.5" min="0" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" placeholder="0" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Reorder Point <span class="text-danger">*</span></label>
+                                <input type="number" name="threshold" step="0.5" min="0" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" placeholder="0" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label class="form-label small fw-bold text-uppercase text-secondary ls-1 mb-0">Storage Area (Optional)</label>
+                                <a href="{{ url_for('admin.create_storage_area') }}" class="btn btn-sm btn-outline-forest rounded-pill px-3 fw-bold" target="_blank" title="Opens in new tab">
+                                    <i class="bi bi-plus-circle me-1"></i>New
+                                </a>
+                            </div>
+                            <select name="storage_area_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                                <option value="">-- No storage area assigned --</option>
+                                {% for area in storage_areas %}
+                                <option value="{{ area.storage_area_id }}">{{ area.storage_area_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text text-muted mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Select where this item is stored, or leave blank to assign later.
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-forest rounded-pill px-4 fw-bold flex-grow-1">
+                                <i class="bi bi-check-circle me-2"></i>Save Inventory Item
+                            </button>
+                            <a href="{{ url_for('admin.view_inventory') }}" class="btn btn-outline-secondary rounded-pill px-4 fw-bold">Cancel</a>
+                        </div>
+                    </form>
+
+                    {% if not storage_areas %}
+                    <div class="alert alert-info mt-4 rounded-3 border-0" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>No storage areas yet.</strong> 
+                        <a href="{{ url_for('admin.create_storage_area') }}" class="alert-link">Create one now</a> to organize your inventory.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h2 class="h5 fw-bold mb-3">
+                        <i class="bi bi-list-check me-2 text-forest"></i>Stored Inventory
+                    </h2>
+                    <p class="text-muted mb-4">Items assigned to your group are tracked here with reorder thresholds.</p>
+                    {% if stored_items %}
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="small text-uppercase text-muted">Category</th>
+                                    <th class="small text-uppercase text-muted">Item</th>
+                                    <th class="small text-uppercase text-muted">Qty</th>
+                                    <th class="small text-uppercase text-muted">Reorder</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in stored_items %}
+                                <tr>
+                                    <td class="fw-bold text-forest">{{ item.item_category }}</td>
+                                    <td>
+                                        {{ item.item_name }}
+                                        {% if item.storage_area_id %}
+                                        <br><span class="small text-muted">📍 Storage assigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>{{ item.threshold }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-box-seam fs-1 text-muted opacity-25 mb-3 d-block"></i>
+                        <p class="text-muted mb-0">No inventory items registered yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.btn-forest { background-color: #1a5e20; color: white; }
+    .btn-forest:hover { background-color: #144d1a; color: white; }
+    .btn-outline-forest { border-color: #1a5e20; color: #1a5e20; }
+    .btn-outline-forest:hover { background-color: #1a5e20; color: white; border-color: #1a5e20; }
+    .btn-outline-secondary:hover { background-color: #6c757d; color: white; }
+</style>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Add Incidental Observation - Kaitiaki Hub{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('operator.incidental_observation_menu') }}" class="text-decoration-none text-muted">Incidental Observation</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Add Observation</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-journal-plus fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">Add Incidental Observation</h1>
+                <p class="text-muted mb-0 small">Log a new unplanned sighting or field note.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                <form method="POST">
+
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-info-circle" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Observation Details</h5>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Observation Type <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="observation_type" placeholder="e.g. animal sighting, weather event" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="observation_description" rows="3" placeholder="Describe the observation..." required></textarea>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Related Trap Line <span class="text-danger">*</span></label>
+                            <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" name="observation_line" required>
+                                <option value="" disabled selected>-- Select a line --</option>
+                                {% for line in active_lines %}
+                                <option value="{{ line['line_id'] }}">{{ line['line_name'] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Date <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="observation_date" required>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('operator.incidental_observation_menu') }}" class="btn btn-outline-secondary rounded-pill px-4 fw-bold">Cancel</a>
+                        <button type="submit" class="btn btn-forest rounded-pill px-4 fw-bold shadow-sm"><i class="bi bi-check2 me-1"></i> Save Observation</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const localDatetime = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + 'T' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0');
+        document.querySelector('input[name="observation_date"]').value = localDatetime;
+    });
+</script>
+{% endblock %}

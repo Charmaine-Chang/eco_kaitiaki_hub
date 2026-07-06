@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% set active_page = 'bait_records' %}
+
+{% block title %}Edit Bait Station Record - #{{ record.bait_station_code }}{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('operator.view_bait_records') }}" class="text-decoration-none text-muted">Bait Records</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Edit Record</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-pencil-square fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">Edit Bait Station Record</h1>
+                <p class="text-muted mb-0 small">Station <strong class="text-forest">#{{ record.bait_station_code }}</strong> on line <strong class="text-forest">{{ record.line_name }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{% if record.line_id %}{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_lines', line_id=record.line_id) }}{% else %}{{ url_for('operator.view_lines', line_id=record.line_id) }}{% endif %}{% else %}{{ url_for('operator.view_bait_records') }}{% endif %}" class="btn btn-outline-forest rounded-pill px-4 fw-bold btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4 p-md-5">
+                {% if is_retired %}
+                <div class="alert alert-warning border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center gap-3">
+                    <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 40px; height: 40px; min-width: 40px;">
+                        <i class="bi bi-archive-fill fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="alert-heading fw-bold mb-0">Archived - Read Only</h5>
+                        <p class="mb-0 small text-dark">This bait station has been retired. The associated log record is now archived as historical data and cannot be modified.</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="POST" class="row g-3">
+                    <fieldset {% if is_retired %}disabled{% endif %} class="row g-3 border-0 p-0 m-0">
+
+                        <!-- Date & Station -->
+                        <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                <i class="bi bi-clock" style="font-size: 0.75rem;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Date &amp; Station</h5>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Station ID</label>
+                            <input type="text" class="form-control border-0 shadow-sm rounded-3 bg-light" value="{{ record.bait_station_code }}" readonly style="background: #f3f4f6 !important;">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Date &amp; Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control border-0 shadow-sm rounded-3" name="date"
+                                   value="{{ record.date.strftime('%Y-%m-%dT%H:%M') if record.date else '' }}" required style="background: #f9fafb;">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Target Species <span class="text-danger">*</span></label>
+                            <select name="target_species_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                {% for s in species %}
+                                <option value="{{ s.species_id }}" {% if s.species_id == record.target_species_id %}selected{% endif %}>{{ s.species_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 my-3"><hr></div>
+
+                        <!-- Bait Specifications -->
+                        <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                <i class="bi bi-droplet" style="font-size: 0.75rem;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Bait Specifications</h5>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Type</label>
+                            <select name="bait_type_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                                <option value="">None / Not specified</option>
+                                {% for b in baits %}
+                                <option value="{{ b.bait_type_id }}" {% if record.bait_type_id == b.bait_type_id %}selected{% endif %}>{{ b.bait_type_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Active Ingredient <span class="text-danger">*</span></label>
+                            <select name="active_ingredient" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                {% for ing in ingredients %}
+                                <option value="{{ ing.ingredient_name }}" {% if ing.ingredient_name == record.active_ingredient %}selected{% endif %}>{{ ing.ingredient_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Formulation <span class="text-danger">*</span></label>
+                            <select name="formulation" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                {% for form in formulations %}
+                                <option value="{{ form.formulation_name }}" {% if form.formulation_name == record.formulation %}selected{% endif %}>{{ form.formulation_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Concentration <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" step="0.0001" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="concentration" value="{{ record.concentration }}" required min="0">
+                                <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">%</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Remaining <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="bait_remaining" value="{{ record.bait_remaining }}" required min="0">
+                                <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">Kg</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Removed (Kg)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="bait_removed" value="{{ record.bait_removed }}" min="0">
+                                <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">Kg</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Added (Kg)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="bait_added" value="{{ record.bait_added }}" min="0">
+                                <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">Kg</span>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Observations &amp; Notes</label>
+                            <textarea class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="notes" rows="3" placeholder="Additional observations about the bait station...">{{ record.notes or '' }}</textarea>
+                        </div>
+
+                        <div class="col-12 mt-5 d-flex justify-content-between align-items-center pt-4 border-top">
+                            <div class="small text-muted">
+                                <i class="bi bi-person-circle me-1"></i> Recorded by <strong>{{ record.recorded_by_name }}</strong>
+                                {% if record.updated_at %}
+                                <br><i class="bi bi-clock-history me-1"></i> Last modified: {{ record.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                {% endif %}
+                            </div>
+                            <div class="d-flex gap-2">
+                                {% if is_retired %}
+                                <button type="button" class="btn btn-secondary rounded-pill px-5 fw-bold shadow-sm" disabled><i class="bi bi-lock me-1"></i> Archived</button>
+                                {% else %}
+                                <button type="submit" class="btn btn-forest rounded-pill px-5 fw-bold shadow-sm"><i class="bi bi-check2 me-1"></i> Save Changes</button>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

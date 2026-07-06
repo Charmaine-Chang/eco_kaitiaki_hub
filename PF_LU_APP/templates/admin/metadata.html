@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+{% set active_page = 'global_metadata' %}
+{% block title %}Global Metadata - PFLU{% endblock %}
+
+{% block extra_head %}
+<style>
+    .metadata-table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .usage-badge { font-size: 0.7rem; }
+    .nav-tabs .nav-link { color: #495057; font-weight: 500; }
+    .nav-tabs .nav-link.active { color: #198754; border-bottom-color: #198754; font-weight: 600; }
+    .tab-icon { font-size: 1rem; }
+    .inline-edit-input { width: 230px; }
+    .card-add { border-top: 3px solid #198754; }
+    .count-pill {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 22px; height: 22px; padding: 0 6px;
+        border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+        background: #e9f5ee; color: #198754;
+    }
+    .count-pill.linked { background: #fff3cd; color: #856404; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Breadcrumbs ── -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Global Metadata</li>
+    </ol>
+</nav>
+
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-1 border-bottom">
+    <div>
+        <h1 class="h3 fw-black text-forest mb-0">
+            <i class="bi bi-database-gear me-2"></i>Global Metadata
+        </h1>
+        <p class="text-muted small mb-0 mt-1">
+            Manage shared lookup tables for species, trap models, and bait formulations.
+            Changes here apply immediately across all groups and all operator dropdowns.
+        </p>
+    </div>
+    <span class="badge bg-success-subtle text-success border border-success-subtle fs-6 px-3 py-2">
+        <i class="bi bi-shield-lock me-1"></i>Super Admin Only
+    </span>
+</div>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mt-4 mb-0" id="metadataTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {{ 'active' if active_tab == 'species' else '' }}"
+                id="species-tab" data-bs-toggle="tab" data-bs-target="#species-panel"
+                type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'species' else 'false' }}">
+            <i class="bi bi-bug tab-icon me-2"></i>Species
+            <span class="count-pill ms-2">{{ species_list | length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {{ 'active' if active_tab == 'trap_types' else '' }}"
+                id="trap-tab" data-bs-toggle="tab" data-bs-target="#trap-panel"
+                type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'trap_types' else 'false' }}">
+            <i class="bi bi-tools tab-icon me-2"></i>Trap Models
+            <span class="count-pill ms-2">{{ trap_type_list | length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {{ 'active' if active_tab == 'bait' else '' }}"
+                id="bait-tab" data-bs-toggle="tab" data-bs-target="#bait-panel"
+                type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'bait' else 'false' }}">
+            <i class="bi bi-box-seam tab-icon me-2"></i>Bait Formulations
+            <span class="count-pill ms-2">{{ bait_list | length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {{ 'active' if active_tab == 'status' else '' }}"
+                id="status-tab" data-bs-toggle="tab" data-bs-target="#status-panel"
+                type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'status' else 'false' }}">
+            <i class="bi bi-flag tab-icon me-2"></i>Trap Status
+            <span class="count-pill ms-2">{{ status_list | length }}</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content border border-top-0 rounded-bottom bg-white shadow-sm p-4">
+
+    <!-- ═══════════════════════ SPECIES TAB ═══════════════════════ -->
+    <div class="tab-pane fade {{ 'show active' if active_tab == 'species' else '' }}"
+         id="species-panel" role="tabpanel">
+
+        <!-- Add form -->
+        <div class="card card-add shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-plus-circle me-2 text-success"></i>Add New Species</h5>
+                <form method="POST" class="row g-2 align-items-center"
+                      onsubmit="
+                        var n = document.getElementById('sp_name').value.trim();
+                        return n ? confirm('Add species &quot;' + n + '&quot; to the global list?') : false;
+                      ">
+                    <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="entity" value="species">
+                    <div class="col-md-5">
+                        <input type="text" id="sp_name" name="species_name" class="form-control"
+                               placeholder="e.g. Rat, Stoat, Possum" required maxlength="60">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="color" name="species_color" class="form-control form-control-color p-0 border-0" value="#198754" title="Choose species color">
+                            <span class="small text-muted">Color</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-lg me-1"></i>Add Species
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 metadata-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px">ID</th>
+                        <th>Species Name</th>
+                        <th style="width:120px">Color</th>
+                        <th style="width:120px" class="text-center">Catch Records</th>
+                        <th class="text-end" style="width:160px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in species_list %}
+                    {% set use_count = species_usage.get(s.species_id, 0) %}
+                    <tr onclick="if(!this.classList.contains('editing')) startEdit('sp', '{{ s.species_id }}')" style="cursor: pointer;">
+                        <td class="text-muted small ps-4">{{ s.species_id }}</td>
+                        <td>
+                            <span class="sp-label-{{ s.species_id }} fw-medium">{{ s.species_name }}</span>
+                            <form method="POST" class="d-none sp-form-{{ s.species_id }}"
+                                  onsubmit="return confirm('Save changes to this species?');">
+                                <input type="hidden" name="action" value="edit">
+                                <input type="hidden" name="entity" value="species">
+                                <input type="hidden" name="record_id" value="{{ s.species_id }}">
+                                <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                                    <input type="text" name="species_name" value="{{ s.species_name }}"
+                                           class="form-control form-control-sm inline-edit-input" required maxlength="60">
+                                    <input type="color" name="species_color" value="{{ s.species_color or '#198754' }}" class="form-control form-control-color p-0 border-0" style="width:40px; height:31px;">
+                                    <button type="submit" class="btn btn-success btn-sm shadow-sm">Save</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="cancelEdit('sp', '{{ s.species_id }}')">Cancel</button>
+                                </div>
+                            </form>
+                        </td>
+                        <td>
+                            {% set disp_color = s.species_color or (species_colors[s.species_name]['hex'] if s.species_name in species_colors else None) %}
+                            <div class="sp-label-{{ s.species_id }} d-flex align-items-center gap-2">
+                                <div class="rounded-circle border" style="width:16px; height:16px; background-color: {{ disp_color or '#e9ecef' }}"></div>
+                                <span class="small text-muted">{{ disp_color or 'Default' }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if use_count > 0 %}
+                            <span class="count-pill linked" title="{{ use_count }} linked catch record(s)">{{ use_count }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <form method="POST" style="display:inline;" onclick="event.stopPropagation();"
+                                  onsubmit="return confirmDelete('{{ s.species_name }}', {{ use_count }});">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="entity" value="species">
+                                <input type="hidden" name="record_id" value="{{ s.species_id }}">
+                                <button type="submit" class="btn btn-link text-danger p-0"
+                                        {% if use_count > 0 %}title="Linked to {{ use_count }} record(s)"{% endif %}>
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">No species added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════ TRAP TYPES TAB ═══════════════════════ -->
+    <div class="tab-pane fade {{ 'show active' if active_tab == 'trap_types' else '' }}"
+         id="trap-panel" role="tabpanel">
+
+        <!-- Add form -->
+        <div class="card card-add shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-plus-circle me-2 text-success"></i>Add New Trap Model</h5>
+                <form method="POST" class="row g-2 align-items-center"
+                      onsubmit="
+                        var n = document.getElementById('tt_name').value.trim();
+                        return n ? confirm('Add trap model &quot;' + n + '&quot; to the global list?') : false;
+                      ">
+                    <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="entity" value="trap_type">
+                    <div class="col-md-7">
+                        <input type="text" id="tt_name" name="trap_type_name" class="form-control"
+                               placeholder="e.g. DOC 200, Timms, Victor, Sentinel" required maxlength="60">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-lg me-1"></i>Add Trap Model
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 metadata-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px">ID</th>
+                        <th>Trap Model Name</th>
+                        <th style="width:120px" class="text-center">Traps Using</th>
+                        <th class="text-end" style="width:160px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tt in trap_type_list %}
+                    {% set use_count = trap_type_usage.get(tt.trap_type_id, 0) %}
+                    <tr onclick="if(!this.classList.contains('editing')) startEdit('tt', '{{ tt.trap_type_id }}')" style="cursor: pointer;">
+                        <td class="text-muted small ps-4">{{ tt.trap_type_id }}</td>
+                        <td>
+                            <span class="tt-label-{{ tt.trap_type_id }} fw-medium">{{ tt.trap_type_name }}</span>
+                            <form method="POST" class="d-none tt-form-{{ tt.trap_type_id }}"
+                                  onsubmit="return confirm('Save changes to this trap model?');">
+                                <input type="hidden" name="action" value="edit">
+                                <input type="hidden" name="entity" value="trap_type">
+                                <input type="hidden" name="record_id" value="{{ tt.trap_type_id }}">
+                                <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                                    <input type="text" name="trap_type_name" value="{{ tt.trap_type_name }}"
+                                           class="form-control form-control-sm inline-edit-input" required maxlength="60">
+                                    <button type="submit" class="btn btn-success btn-sm shadow-sm">Save</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="cancelEdit('tt', '{{ tt.trap_type_id }}')">Cancel</button>
+                                </div>
+                            </form>
+                        </td>
+                        <td class="text-center">
+                            {% if use_count > 0 %}
+                            <span class="count-pill linked" title="{{ use_count }} trap(s) using this model">{{ use_count }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <form method="POST" style="display:inline;" onclick="event.stopPropagation();"
+                                  onsubmit="return confirmDelete('{{ tt.trap_type_name }}', {{ use_count }});">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="entity" value="trap_type">
+                                <input type="hidden" name="record_id" value="{{ tt.trap_type_id }}">
+                                <button type="submit" class="btn btn-link text-danger p-0"
+                                        {% if use_count > 0 %}title="Linked to {{ use_count }} trap(s)"{% endif %}>
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">No trap models added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════ BAIT TAB ═══════════════════════ -->
+    <div class="tab-pane fade {{ 'show active' if active_tab == 'bait' else '' }}"
+         id="bait-panel" role="tabpanel">
+
+        <!-- Add form -->
+        <div class="card card-add shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-plus-circle me-2 text-success"></i>Add New Bait Formulation</h5>
+                <form method="POST" class="row g-2 align-items-center"
+                      onsubmit="
+                        var n = document.getElementById('bt_name').value.trim();
+                        return n ? confirm('Add bait &quot;' + n + '&quot; to the global list?') : false;
+                      ">
+                    <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="entity" value="bait">
+                    <div class="col-md-7">
+                        <input type="text" id="bt_name" name="bait_name" class="form-control"
+                               placeholder="e.g. Peanut Butter, Chocolate, Lure Paste" required maxlength="60">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-lg me-1"></i>Add Bait
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 metadata-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px">ID</th>
+                        <th>Bait Name</th>
+                        <th style="width:120px" class="text-center">Catch Records</th>
+                        <th class="text-end" style="width:160px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bait_list %}
+                    {% set use_count = bait_usage.get(b.bait_type_id, 0) %}
+                    <tr onclick="if(!this.classList.contains('editing')) startEdit('bt', '{{ b.bait_type_id }}')" style="cursor: pointer;">
+                        <td class="text-muted small ps-4">{{ b.bait_type_id }}</td>
+                        <td>
+                            <span class="bt-label-{{ b.bait_type_id }} fw-medium">{{ b.bait_type_name }}</span>
+                            <form method="POST" class="d-none bt-form-{{ b.bait_type_id }}"
+                                  onsubmit="return confirm('Save changes to this bait formulation?');">
+                                <input type="hidden" name="action" value="edit">
+                                <input type="hidden" name="entity" value="bait">
+                                <input type="hidden" name="record_id" value="{{ b.bait_type_id }}">
+                                <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                                    <input type="text" name="bait_name" value="{{ b.bait_type_name }}"
+                                           class="form-control form-control-sm inline-edit-input" required maxlength="60">
+                                    <button type="submit" class="btn btn-success btn-sm shadow-sm">Save</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="cancelEdit('bt', '{{ b.bait_type_id }}')">Cancel</button>
+                                </div>
+                            </form>
+                        </td>
+                        <td class="text-center">
+                            {% if use_count > 0 %}
+                            <span class="count-pill linked" title="{{ use_count }} linked catch record(s)">{{ use_count }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <form method="POST" style="display:inline;" onclick="event.stopPropagation();"
+                                  onsubmit="return confirmDelete('{{ b.bait_type_name }}', {{ use_count }});">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="entity" value="bait">
+                                <input type="hidden" name="record_id" value="{{ b.bait_type_id }}">
+                                <button type="submit" class="btn btn-link text-danger p-0"
+                                        {% if use_count > 0 %}title="Linked to {{ use_count }} record(s)"{% endif %}>
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">No bait formulations added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div><!-- /tab-content -->
+
+    <!-- ═══════════════════════ STATUS TAB ═══════════════════════ -->
+    <div class="tab-pane fade {{ 'show active' if active_tab == 'status' else '' }}"
+         id="status-panel" role="tabpanel">
+
+        <!-- Add form -->
+        <div class="card card-add shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-plus-circle me-2 text-success"></i>Add New Trap Status</h5>
+                <form method="POST" class="row g-2 align-items-center"
+                      onsubmit="
+                        var n = document.getElementById('st_name').value.trim();
+                        return n ? confirm('Add status &quot;' + n + '&quot; to the global list?') : false;
+                      ">
+                    <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="entity" value="status">
+                    <div class="col-md-7">
+                        <input type="text" id="st_name" name="status_name" class="form-control"
+                               placeholder="e.g. Active, Sprung, Needs Reset" required maxlength="60">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-lg me-1"></i>Add Status
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 metadata-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px">ID</th>
+                        <th>Status Name</th>
+                        <th style="width:120px" class="text-center">Catch Records</th>
+                        <th class="text-end" style="width:160px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for st in status_list %}
+                    {% set use_count = status_usage.get(st.trap_status_id, 0) %}
+                    <tr onclick="if(!this.classList.contains('editing')) startEdit('st', '{{ st.trap_status_id }}')" style="cursor: pointer;">
+                        <td class="text-muted small ps-4">{{ st.trap_status_id }}</td>
+                        <td>
+                            <span class="st-label-{{ st.trap_status_id }} fw-medium">{{ st.status_name }}</span>
+                            <form method="POST" class="d-none st-form-{{ st.trap_status_id }}"
+                                  onsubmit="return confirm('Save changes to this status?');">
+                                <input type="hidden" name="action" value="edit">
+                                <input type="hidden" name="entity" value="status">
+                                <input type="hidden" name="record_id" value="{{ st.trap_status_id }}">
+                                <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                                    <input type="text" name="status_name" value="{{ st.status_name }}"
+                                           class="form-control form-control-sm inline-edit-input" required maxlength="60">
+                                    <button type="submit" class="btn btn-success btn-sm shadow-sm">Save</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="cancelEdit('st', '{{ st.trap_status_id }}')">Cancel</button>
+                                </div>
+                            </form>
+                        </td>
+                        <td class="text-center">
+                            {% if use_count > 0 %}
+                            <span class="count-pill linked" title="{{ use_count }} linked catch record(s)">{{ use_count }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <form method="POST" style="display:inline;" onclick="event.stopPropagation();"
+                                  onsubmit="return confirmDelete('{{ st.status_name }}', {{ use_count }});">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="entity" value="status">
+                                <input type="hidden" name="record_id" value="{{ st.trap_status_id }}">
+                                <button type="submit" class="btn btn-link text-danger p-0"
+                                        {% if use_count > 0 %}title="Linked to {{ use_count }} record(s)"{% endif %}>
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">No statuses added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Toggle between read label and inline edit form for a row.
+ * prefix: 'sp' (species) | 'tt' (trap type) | 'bt' (bait)
+ */
+function startEdit(prefix, id) {
+    // Add editing class to the row to prevent re-triggering click
+    var row = document.querySelector('.' + prefix + '-form-' + id).closest('tr');
+    row.classList.add('editing');
+    
+    document.querySelectorAll('.' + prefix + '-label-' + id).forEach(el => el.classList.add('d-none'));
+    var form = document.querySelector('.' + prefix + '-form-' + id);
+    form.classList.remove('d-none');
+    form.querySelector('input[type=text]').focus();
+}
+function cancelEdit(prefix, id) {
+    var row = document.querySelector('.' + prefix + '-form-' + id).closest('tr');
+    row.classList.remove('editing');
+    
+    document.querySelector('.' + prefix + '-form-' + id).classList.add('d-none');
+    document.querySelectorAll('.' + prefix + '-label-' + id).forEach(el => el.classList.remove('d-none'));
+}
+
+/**
+ * Delete confirmation — warns the admin if the entry is in use (server will
+ * still block it, but the front-end prompt gives a heads-up first).
+ */
+function confirmDelete(name, useCount) {
+    if (useCount > 0) {
+        return confirm(
+            '\u26a0\ufe0f "' + name + '" is currently linked to ' + useCount + ' record(s).\n\n' +
+            'The system will prevent deletion to preserve historical data.\n\n' +
+            'Click OK to attempt anyway (you will see a warning message).'
+        );
+    }
+    return confirm('Delete "' + name + '"? This action cannot be undone.');
+}
+
+// Ensure the correct BS tab is shown when arriving after a POST redirect
+// (active_tab is baked into the class by Jinja, but we also activate via JS
+// so the tab pill itself is highlighted properly)
+document.addEventListener('DOMContentLoaded', function () {
+    var activeTab = '{{ active_tab }}';
+    var tabMap = { species: 'species-tab', trap_types: 'trap-tab', bait: 'bait-tab', status: 'status-tab' };
+    var el = document.getElementById(tabMap[activeTab]);
+    if (el) { new bootstrap.Tab(el).show(); }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,9 @@
+# Database connection configuration
+# Copy this file to connect_local.py and fill in your local PostgreSQL credentials.
+# connect_local.py is git-ignored — never commit real credentials.
+
+dbuser = "your_username"
+dbpass = "your_password"
+dbhost = "localhost"
+dbport = "5432"
+dbname = "your_db_name"

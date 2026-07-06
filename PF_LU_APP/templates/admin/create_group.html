@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% set active_page = 'create_group' %}
+
+{% block title %}Create Group - Kaitiaki Hub{% endblock %}
+
+{% block extra_head %}
+<style>
+    .coord-select {
+        background: #f9fafb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}" class="text-decoration-none text-muted">Admin Dashboard</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Create Group</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-plus-lg fw-black fs-5"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">Onboard New Group</h1>
+                <p class="text-muted mb-0 small">Create an active conservation group and appoint its coordinator.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-forest rounded-pill px-4 fw-bold btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <form action="{{ url_for('admin.create_group') }}" method="POST" class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+
+                <!-- Core Information -->
+                <div class="mb-4 d-flex align-items-center gap-2">
+                    <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                        <i class="bi bi-info-circle" style="font-size: 0.75rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Core Information</h5>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-12">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Group Name <span class="text-danger">*</span></label>
+                        <input type="text" name="group_name" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" placeholder="e.g. West Coast Predator Free" required>
+                        <div class="form-text small text-muted">Must be unique and descriptive.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Description</label>
+                        <textarea name="description" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" rows="3" placeholder="Tell us about this group's mission..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Privacy & Branding -->
+                <div class="mb-4 d-flex align-items-center gap-2">
+                    <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                        <i class="bi bi-sliders" style="font-size: 0.75rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Privacy & Branding</h5>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Privacy Status <span class="text-danger">*</span></label>
+                        <select name="visibility" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                            <option value="public" selected>Public (Anyone can find and join)</option>
+                            <option value="private">Private (Invite / Request only)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Branding Image URL</label>
+                        <input type="text" name="branding_image" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" placeholder="https://example.com/logo.jpg">
+                        <div class="form-text small text-muted">Optional: link to a logo or cover photo.</div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Coordinator -->
+                <div class="mb-4 d-flex align-items-center gap-2">
+                    <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                        <i class="bi bi-person-badge" style="font-size: 0.75rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Appoint Coordinator</h5>
+                </div>
+
+                <p class="small text-muted mb-3">Select an existing verified user to manage this group. They will receive immediate administrative access.</p>
+
+                <div class="input-group mb-3">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <select name="coordinator_id" class="form-select border-start-0 coord-select" id="coordSelect" required>
+                        <option value="" disabled selected>-- Select a User --</option>
+                        {% for user in users %}
+                        <option value="{{ user.user_id }}">
+                            {{ user.first_name }} {{ user.last_name }} (@{{ user.username }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </div>
+            <div class="card-footer bg-white border-0 pt-0 pb-4 px-4">
+                <hr class="my-0 mb-4">
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary rounded-pill px-4 fw-bold">Cancel</a>
+                    <button type="submit" class="btn btn-forest rounded-pill px-5 fw-bold shadow-sm">
+                        <i class="bi bi-check-circle me-2"></i> Create Active Group
+                    </button>
+                </div>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

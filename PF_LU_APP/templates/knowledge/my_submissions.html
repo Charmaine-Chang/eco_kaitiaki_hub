@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% set active_page = 'knowledge' %}
+
+{% block title %}My Knowledge Submissions{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small text-uppercase ls-1">
+            <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.knowledge_hub') }}" class="text-decoration-none text-muted">Knowledge Hub</a></li>
+            <li class="breadcrumb-item active text-forest fw-bold">My Submissions</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="fw-black text-forest h3 mb-1">
+                <i class="bi bi-person-lines-fill me-2"></i>My Knowledge Submissions
+            </h1>
+            <p class="text-muted small mb-0">Track the approval status of your submitted knowledge entries.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('main.knowledge_hub') }}" class="btn btn-outline-forest rounded-pill px-4">
+                <i class="bi bi-arrow-left me-1"></i> Knowledge Hub
+            </a>
+            <a href="{{ url_for('knowledge.submit_knowledge') }}" class="btn btn-forest rounded-pill px-4 fw-bold">
+                <i class="bi bi-plus-circle me-1"></i> Submit New Entry
+            </a>
+        </div>
+    </div>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3 mb-4" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if submissions %}
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-forest">
+                <i class="bi bi-list-ul me-2"></i>All Submissions
+                <span class="badge bg-secondary ms-2 fw-normal">{{ submissions|length }}</span>
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4 py-3">Title</th>
+                        <th class="py-3">Category</th>
+                        <th class="py-3">Status</th>
+                        <th class="py-3">Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in submissions %}
+                    <tr>
+                        <td class="ps-4 py-3 fw-semibold text-dark">{{ s.title }}</td>
+                        <td class="py-3">
+                            <span class="badge bg-success-soft text-forest text-uppercase ls-1 px-3 py-2" style="font-size:.72rem;">
+                                {{ s.category }}
+                            </span>
+                        </td>
+                        <td class="py-3">
+                            {% if s.status == 'approved' %}
+                            <span class="badge bg-success rounded-pill px-3">
+                                <i class="bi bi-check-circle me-1"></i>Approved
+                            </span>
+                            {% elif s.status == 'rejected' %}
+                            <span class="badge bg-danger rounded-pill px-3">
+                                <i class="bi bi-x-circle me-1"></i>Rejected
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark rounded-pill px-3">
+                                <i class="bi bi-hourglass-split me-1"></i>Pending Review
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 text-muted small">{{ s.created_at|date_nz }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Status legend -->
+    <div class="mt-4 d-flex flex-wrap gap-3 small text-muted">
+        <span><span class="badge bg-warning text-dark rounded-pill me-1">Pending</span> Awaiting coordinator review — not yet public</span>
+        <span><span class="badge bg-success rounded-pill me-1">Approved</span> Visible in the Knowledge Hub</span>
+        <span><span class="badge bg-danger rounded-pill me-1">Rejected</span> Will not be published</span>
+    </div>
+
+    {% else %}
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-5 text-center text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+            <h5 class="fw-bold text-dark mb-1">No submissions yet</h5>
+            <p class="mb-4">You haven't submitted any knowledge entries. Share your expertise with the community!</p>
+            <a href="{{ url_for('knowledge.submit_knowledge') }}" class="btn btn-forest rounded-pill px-4 fw-bold">
+                <i class="bi bi-plus-circle me-1"></i> Submit Your First Entry
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

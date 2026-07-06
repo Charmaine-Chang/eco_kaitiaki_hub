@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Find a Group – Eco Kaitiaki Hub{% endblock %}
+{% block extra_head %}
+<style>
+    .fg-hero {
+        background: linear-gradient(135deg, #3E6A44 0%, #2d4f32 100%);
+        padding: 3rem 0;
+    }
+    .fg-hero h1 {
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .fg-hero p {
+        opacity: 0.9;
+        max-width: 560px;
+    }
+    .fg-search {
+        max-width: 400px;
+    }
+    .fg-search input {
+        border-radius: 100px;
+        border: none;
+        padding: 0.65rem 1.25rem;
+        font-size: 0.9rem;
+        width: 100%;
+        outline: none;
+    }
+    .fg-card {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        height: 100%;
+    }
+    .fg-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 32px rgba(62,106,68,0.12);
+    }
+    .fg-icon-wrap {
+        height: 72px;
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .fg-icon-wrap i { font-size: 2rem; color: #3E6A44; }
+    .fg-card .btn-dashed {
+        border: 1px solid #000000 !important;
+        color: #000000 !important;
+        background-color: transparent !important;
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+    }
+    .fg-card .btn-dashed:hover {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fg-hero">
+    <div class="container">
+        <h1 class="text-white mb-2" style="font-size: 2rem;">Find a Conservation Group</h1>
+        <p class="text-white mb-3">Discover active local groups across Aotearoa making a real difference for native wildlife.</p>
+        <div class="fg-search">
+            <input type="text" id="fgSearch" placeholder="Search by name or location…" oninput="filterGroups()">
+        </div>
+    </div>
+</div>
+
+<section class="py-5 bg-white">
+    <div class="container">
+        {% if session.get('user_id') %}
+        <div class="mb-4">
+            <a href="{{ url_for('auth.apply_group') }}" class="btn btn-dashed px-4">
+                <i class="bi bi-plus-circle me-1"></i>Apply for New Group
+            </a>
+        </div>
+        {% endif %}
+
+        {% if groups %}
+        <div class="row g-4" id="fgGrid">
+            {% for group in groups %}
+            <div class="col-sm-6 col-lg-3 fg-col" data-name="{{ group.group_name|lower }}" data-area="{{ (group.geographic_area or '')|lower }}">
+                <div class="card fg-card">
+                    <div class="fg-icon-wrap">
+                        <i class="bi bi-tree"></i>
+                    </div>
+                    <div class="card-body pb-2">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="fw-bold mb-0 me-2">{{ group.group_name }}</h6>
+                            {% if group.visibility == 'private' %}
+                            <span class="badge bg-secondary text-nowrap" style="font-size:.7rem;"><i class="bi bi-lock-fill me-1"></i>Restricted</span>
+                            {% else %}
+                            <span class="badge text-nowrap" style="background:#3E6A44;font-size:.7rem;"><i class="bi bi-globe me-1"></i>Public</span>
+                            {% endif %}
+                        </div>
+                        {% if group.geographic_area %}
+                        <p class="small text-muted mb-2"><i class="bi bi-geo-alt-fill me-1" style="color:#3E6A44;"></i>{{ group.geographic_area }}</p>
+                        {% endif %}
+                        {% if group.visibility == 'private' %}
+                        <p class="small text-muted fst-italic">This group is invite-only.</p>
+                        {% elif group.description %}
+                        <p class="small text-muted">{{ group.description[:100] }}{% if group.description|length > 100 %}…{% endif %}</p>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent border-0 pb-3 px-3">
+                        {% if not session.get('user_id') %}
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-dashed btn-sm w-100"><i class="bi bi-box-arrow-in-right me-1"></i>Log in to Join</a>
+                        {% elif group.group_id in user_group_ids or session.get('is_super_admin') %}
+                        <form method="POST" action="{{ url_for('groups.enter_group', group_id=group.group_id) }}">
+                            <button type="submit" class="btn btn-forest btn-sm w-100"><i class="bi bi-box-arrow-in-right me-1"></i>Enter Group</button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('auth.join_group', group_id=group.group_id) }}">
+                            <button type="submit" class="btn btn-dashed btn-sm w-100">
+                                <i class="bi bi-person-plus me-1"></i>
+                                {% if group.visibility == 'private' %}Request Access{% else %}Join Group{% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div id="fgEmpty" class="d-none text-center py-5">
+            <i class="bi bi-search text-muted" style="font-size:2.5rem;"></i>
+            <p class="text-muted mt-2 mb-0">No groups match your search.</p>
+        </div>
+        {% else %}
+        <div class="alert alert-light rounded-3 shadow-sm">
+            <i class="bi bi-info-circle me-2 text-muted"></i>No active groups at this time.
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function filterGroups() {
+    var q = document.getElementById('fgSearch').value.toLowerCase().trim();
+    var cols = document.querySelectorAll('.fg-col');
+    var visible = 0;
+    cols.forEach(function(col) {
+        var name = col.getAttribute('data-name');
+        var area = col.getAttribute('data-area');
+        if (!q || name.indexOf(q) !== -1 || area.indexOf(q) !== -1) {
+            col.style.display = '';
+            visible++;
+        } else {
+            col.style.display = 'none';
+        }
+    });
+    document.getElementById('fgEmpty').classList.toggle('d-none', visible > 0);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% macro empty_state(icon='bi-inbox', title='No Data Available', description='There is currently no data to display here.', button_text=None, button_url='#', button_icon='bi-plus-circle') %}
+<div class="empty-state text-center py-5 px-3 bg-white rounded-4 shadow-sm border border-light">
+    <div class="empty-state-icon mb-3">
+        <i class="bi {{ icon }} display-4 text-secondary opacity-50"></i>
+    </div>
+    <h4 class="empty-state-title fw-bold text-dark mb-2">{{ title }}</h4>
+    <p class="empty-state-desc text-muted mb-4" style="max-width: 400px; margin: 0 auto;">
+        {{ description }}
+    </p>
+    {% if button_text %}
+    <a href="{{ button_url }}" class="btn btn-forest rounded-pill px-4 shadow-sm fw-semibold">
+        <i class="bi {{ button_icon }} me-1"></i> {{ button_text }}
+    </a>
+    {% endif %}
+</div>
+{% endmacro %}

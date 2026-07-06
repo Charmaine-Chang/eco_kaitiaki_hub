@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% set active_page = 'stock_inventory' %}
+{% block title %}Stock Inventory - PFLU{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% else %}{{ url_for('operator.operator_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Stock Inventory</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-3 bg-white rounded-4 shadow-sm border-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <div>
+                <h1 class="h3 fw-black text-forest mb-0"><i class="bi bi-boxes me-2"></i>Stock Inventory</h1>
+                <p class="text-muted small mb-0">Bait, toxins, and equipment stock for your group.</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                <a href="{{ url_for('inventory.create_item') }}" class="btn btn-forest btn-sm rounded-pill fw-bold">Add Item</a>
+                <a href="{{ url_for('inventory.manage_storage') }}" class="btn btn-outline-forest btn-sm rounded-pill fw-bold">Storage Areas</a>
+                <a href="{{ url_for('inventory.audit_log') }}" class="btn btn-outline-forest btn-sm rounded-pill fw-bold">Audit Log</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive bg-white rounded-4 shadow-sm">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="ps-4">Item</th>
+                <th>Category</th>
+                {% if session.get('is_super_admin') %}<th>Group</th>{% endif %}
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Threshold</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th class="text-end pe-4">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr class="{% if item.is_retired %}text-muted{% elif item.item_category|lower in ['bait', 'toxin', 'equipment'] and item.quantity < item.threshold %}table-warning{% endif %}">
+                <td class="ps-4 fw-bold">
+                    <a href="{{ url_for('inventory.item_detail', item_id=item.item_id) }}" class="text-decoration-none text-forest">{{ item.item_name }}</a>
+                    {% if item.item_category|lower in ['bait', 'toxin', 'equipment'] and not item.is_retired and item.quantity < item.threshold %}
+                    <span class="badge bg-warning text-dark ms-1">Low stock</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.item_category }}</td>
+                {% if session.get('is_super_admin') %}<td class="small">{{ item.group_name }}</td>{% endif %}
+                <td>{{ item.quantity }}</td>
+                <td class="small">{{ item.unit_of_measure or '—' }}</td>
+                <td>{{ item.threshold }}</td>
+                <td class="small">
+                    {% if item.line_name %}Line: {{ item.line_name }}
+                    {% elif item.storage_area_name %}Storage: {{ item.storage_area_name }}
+                    {% else %}Unassigned{% endif %}
+                </td>
+                <td>{% if item.is_retired %}<span class="badge bg-secondary">Retired</span>{% else %}<span class="badge bg-success-soft text-forest">Active</span>{% endif %}</td>
+                <td class="text-end pe-4">
+                    {% if not item.is_retired %}
+                    <a href="{{ url_for('inventory.move_item', item_id=item.item_id) }}" class="btn btn-outline-forest btn-sm">Manage inventory</a>
+                    <a href="{{ url_for('inventory.edit_item', item_id=item.item_id) }}" class="btn btn-outline-secondary btn-sm">Configure item</a>
+                    {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                    <form method="POST" action="{{ url_for('inventory.retire_item', item_id=item.item_id) }}" class="d-inline" onsubmit="return confirm('Retire this item?');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Retire</button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No inventory items found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+<p class="mt-3 small">
+    <a href="{{ url_for('inventory.stock_list', show_retired=('0' if show_retired else '1')) }}">
+        {% if show_retired %}Hide retired items{% else %}Show retired items{% endif %}
+    </a>
+</p>
+{% endif %}
+{% endblock %}

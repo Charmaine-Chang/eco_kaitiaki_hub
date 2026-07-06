@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Version History: {{ current.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small text-uppercase ls-1">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}" class="text-decoration-none text-muted">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.knowledge_hub') }}" class="text-decoration-none text-muted">Knowledge Hub</a></li>
+            <li class="breadcrumb-item active text-forest fw-bold">Version History</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-header bg-white border-0 p-4">
+                    <h1 class="h4 fw-black text-forest mb-1">Version History</h1>
+                    <p class="text-muted small mb-0">Tracking changes for: <strong>{{ current.title }}</strong></p>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <!-- Current Version -->
+                        <div class="list-group-item p-4 bg-light border-start border-4 border-forest">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge bg-forest text-white px-3 py-1 rounded-pill">Current Version</span>
+                                <small class="text-muted">{{ current.updated_at.strftime('%B %d, %Y at %I:%M %p') if current.updated_at else current.created_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
+                            </div>
+                            <h5 class="fw-bold mb-2">{{ current.title }}</h5>
+                            {% if current.photo_url %}
+                            <div class="mb-3">
+                                <img src="{{ current.photo_url | photo_src }}" alt="Current image" class="img-fluid rounded-3 border" style="max-height: 200px; object-fit: cover;">
+                            </div>
+                            {% endif %}
+                            <div class="text-muted mb-3" style="font-size: 0.9rem;">
+                                {{ current.content[:200] }}...
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px; font-size: 0.6rem;">
+                                    {{ current.username[:1].upper() }}
+                                </div>
+                                <small class="text-muted">Last updated by <strong>@{{ current.username }}</strong></small>
+                            </div>
+                        </div>
+
+                        <!-- Previous Revisions -->
+                        {% if revisions %}
+                            {% for rev in revisions %}
+                            <div class="list-group-item p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-secondary text-white px-3 py-1 rounded-pill">Version {{ rev.version_number }}</span>
+                                    <small class="text-muted">{{ rev.created_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
+                                </div>
+                                <h5 class="fw-bold mb-2 text-dark opacity-75">{{ rev.title }}</h5>
+                                {% if rev.photo_url %}
+                                <div class="mb-3">
+                                    <img src="{{ rev.photo_url | photo_src }}" alt="Version image" class="img-fluid rounded-3 border" style="max-height: 180px; object-fit: cover;">
+                                </div>
+                                {% endif %}
+                                <div class="text-muted mb-3" style="font-size: 0.9rem;">
+                                    {{ rev.content[:200] }}...
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px; font-size: 0.6rem;">
+                                        {{ rev.username[:1].upper() }}
+                                    </div>
+                                    <small class="text-muted">Archived by <strong>@{{ rev.username }}</strong></small>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-sm btn-outline-forest rounded-pill fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#revContent{{ rev.revision_id }}">
+                                        View Full Content
+                                    </button>
+                                    <div class="collapse mt-3" id="revContent{{ rev.revision_id }}">
+                                        <div class="p-3 bg-light rounded-3 text-muted" style="font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap;">{{ rev.content }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="list-group-item p-5 text-center text-muted">
+                                <i class="bi bi-clock-history fs-1 d-block mb-3 opacity-25"></i>
+                                <p class="mb-0">No previous versions available for this entry.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 2rem;">
+                <h5 class="fw-bold text-forest mb-3">About Versioning</h5>
+                <p class="text-muted small">Every time a Group Coordinator edits a published knowledge entry, the previous version is automatically archived here for reference.</p>
+                <p class="text-muted small mb-4">This ensures transparency and allows members to see how guides and protocols have evolved over time.</p>
+                <a href="{{ url_for('main.knowledge_hub') }}" class="btn btn-forest w-100 rounded-pill fw-bold">
+                    Back to Knowledge Hub
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-forest { border-color: #1a5e20 !important; }
+.btn-forest { background-color: #1a5e20; color: white; border: none; }
+.btn-forest:hover { background-color: #144919; color: white; }
+.btn-outline-forest { border: 2px solid #1a5e20; color: #1a5e20; background: transparent; }
+.btn-outline-forest:hover { background-color: #1a5e20; color: white; }
+.ls-1 { letter-spacing: 0.05em; }
+</style>
+{% endblock %}

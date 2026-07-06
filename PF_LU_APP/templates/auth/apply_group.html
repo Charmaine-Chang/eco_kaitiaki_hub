@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% set active_page = 'apply_group' %}
+
+{% block title %}Apply for New Group - Mokomoko Conservation Network{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+
+        <!-- Page heading -->
+        <div class="mb-4">
+            <a href="{{ url_for('auth.my_groups') }}" class="text-muted small text-decoration-none">
+                <i class="bi bi-arrow-left me-1"></i>Back to My Groups
+            </a>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-forest py-3 border-0">
+                <h4 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-plus-circle me-2"></i>Apply for a New Conservation Group
+                </h4>
+                <p class="text-white text-opacity-75 small mb-0 mt-1">
+                    Your application will be reviewed by an administrator. The group will not appear
+                    in the public list until it is approved.
+                </p>
+            </div>
+
+            <div class="card-body p-4 p-md-5">
+                <form method="POST" action="{{ url_for('auth.apply_group') }}" id="apply-group-form">
+
+                    <!-- Group Name -->
+                    <div class="mb-4">
+                        <label for="group_name" class="form-label fw-semibold">
+                            Group Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="group_name" name="group_name"
+                               maxlength="50" placeholder="e.g. Kaikoura Valley Predator-Free"
+                               value="{{ form_data.get('group_name', '') }}" required>
+                        <div class="form-text">Must be unique. Max 50 characters.</div>
+                    </div>
+
+                    <!-- Mission Statement -->
+                    <div class="mb-4">
+                        <label for="mission" class="form-label fw-semibold">Mission Statement</label>
+                        <textarea class="form-control" id="mission" name="mission" rows="3"
+                                  placeholder="Briefly describe the purpose and goals of your group…">{{ form_data.get('mission', '') }}</textarea>
+                    </div>
+
+                    <!-- Contact Email -->
+                    <div class="mb-4">
+                        <label for="contact_email" class="form-label fw-semibold">
+                            Contact Email <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted">
+                                <i class="bi bi-envelope"></i>
+                            </span>
+                            <input type="email" class="form-control border-start-0" id="contact_email"
+                                   name="contact_email"
+                                   placeholder="group-coordinator@example.com"
+                                   value="{{ form_data.get('contact_email', '') }}" required>
+                        </div>
+                    </div>
+
+                    <!-- Geographic Area -->
+                    <div class="mb-4">
+                        <label for="geographic_area" class="form-label fw-semibold">
+                            General Geographic Area
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted">
+                                <i class="bi bi-geo-alt"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0" id="geographic_area"
+                                   name="geographic_area" maxlength="100"
+                                   placeholder="e.g. Kaikoura Plains, Canterbury"
+                                   value="{{ form_data.get('geographic_area', '') }}">
+                        </div>
+                    </div>
+
+                    <!-- Visibility -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Group Visibility</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="visibility"
+                                       id="vis_public" value="public"
+                                       {% if form_data.get('visibility', 'public') == 'public' %}checked{% endif %}>
+                                <label class="form-check-label" for="vis_public">
+                                    <i class="bi bi-globe text-success me-1"></i>
+                                    <strong>Public</strong> – visible to all visitors
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="visibility"
+                                       id="vis_private" value="private"
+                                       {% if form_data.get('visibility') == 'private' %}checked{% endif %}>
+                                <label class="form-check-label" for="vis_private">
+                                    <i class="bi bi-lock-fill text-secondary me-1"></i>
+                                    <strong>Private</strong> – restricted, invite-only
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logo placeholder notice -->
+                    <div class="alert alert-light border rounded-3 mb-4 small">
+                        <i class="bi bi-image text-muted me-2"></i>
+                        <strong>Logo:</strong> A default logo will be assigned. You can update it
+                        after your group is approved.
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-forest btn-lg fw-bold py-3 rounded-pill shadow-sm">
+                            <i class="bi bi-send me-2"></i>Submit Application
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div><!-- /card -->
+
+    </div>
+</div>
+{% endblock %}

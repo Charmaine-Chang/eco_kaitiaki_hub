@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% set active_page = 'trap_lines' %}
+
+{% block title %}Create New Infrastructure Line - Admin{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.view_lines') }}" class="text-decoration-none text-muted">Infrastructure</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">New Line Configuration</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-diagram-3 fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">New Line Configuration</h1>
+                <p class="text-muted mb-0 small">Create a new infrastructure line to group equipment by geographic area.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{{ url_for('admin.view_lines') }}" class="btn btn-outline-forest rounded-pill px-4 fw-bold btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Lines
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 align-items-stretch">
+    <!-- Left Side: Creation Form -->
+    <div class="col-12 col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-forest text-white border-0 py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-plus-circle-fill me-2"></i>Line Configuration</h5>
+            </div>
+            <div class="card-body p-4 p-xl-5">
+                <form method="POST" action="{{ url_for('admin.create_new_lines') }}" id="createLineForm">
+                    <!-- Line Name -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-end mb-2">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1 mb-0">Line Name</label>
+                            <span class="char-counter" id="charCounter">0 / 20</span>
+                        </div>
+                        <input type="text" class="form-control border-0 shadow-sm rounded-3" id="line_name" name="line_name" 
+                               placeholder="e.g. West Melton Forest" maxlength="20" required autofocus style="background: #f9fafb;">
+                        <div id="uniquenessFeedback" class="small text-danger mt-1 d-none">
+                            <i class="bi bi-exclamation-circle me-1"></i> A line with this name already exists in your group.
+                        </div>
+                        <div class="form-text small text-muted mt-2">
+                            Choose a descriptive name for geographic grouping (e.g., North Boundary, River Track).
+                        </div>
+                    </div>
+
+                    <!-- Line Type -->
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Infrastructure Type</label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" name="line_type" required>
+                            <option value="" disabled selected>Select hardware type...</option>
+                            <option value="trap">Predator Trap Network</option>
+                            <option value="bait_station">Bait Station Network</option>
+                        </select>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-5">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Initial Status</label>
+                        <div class="d-flex gap-3">
+                            <div class="flex-fill">
+                                <input type="radio" class="btn-check" name="status" id="statusActive" value="active" checked>
+                                <label class="btn btn-outline-forest w-100 py-3 rounded-4 fw-bold" for="statusActive">
+                                    <i class="bi bi-play-circle-fill me-2"></i>Active
+                                </label>
+                            </div>
+                            <div class="flex-fill">
+                                <input type="radio" class="btn-check" name="status" id="statusInactive" value="inactive">
+                                <label class="btn btn-outline-secondary w-100 py-3 rounded-4 fw-bold" for="statusInactive">
+                                    <i class="bi bi-pause-circle me-2"></i>Inactive
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-forest w-100 py-3 rounded-4 fw-bold shadow-sm mb-3" id="submitBtn">
+                            <i class="bi bi-shield-check me-2"></i> Initialize Line
+                        </button>
+                        <a href="{{ url_for('admin.view_lines') }}" class="btn btn-sm btn-link text-muted text-decoration-none fw-bold">
+                            Cancel and return to overview
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side: Existing Infrastructure -->
+    <div class="col-12 col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-dark small text-uppercase ls-1">
+                    <i class="bi bi-clock-history me-2 text-forest"></i>Existing Infrastructure
+                </h5>
+                {% if trap_lines %}
+                <span class="badge bg-forest-soft text-forest rounded-pill px-3">{{ trap_lines|length }} Lines</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if trap_lines %}
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light sticky-top text-muted" style="z-index: 10; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <tr>
+                                <th class="ps-4">Line Name</th>
+                                <th>Classification</th>
+                                <th class="pe-4 text-end">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in trap_lines %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ line.line_name }}</div>
+                                    <div class="small text-muted">Added {{ line.created_at.strftime('%d %b %Y') if line.created_at else 'N/A' }}</div>
+                                </td>
+                                <td>
+                                    {% if line.line_type == 'trap' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success fw-bold rounded-pill px-3 py-1">
+                                        <i class="bi bi-grid-3x3-gap-fill me-1"></i>Predator Trap
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold rounded-pill px-3 py-1">
+                                        <i class="bi bi-signpost-2 me-1"></i>Bait Station
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="pe-4 text-end">
+                                    <span class="badge rounded-pill px-3 {% if line.status == 'active' %}bg-success-soft text-success{% else %}bg-light text-muted{% endif %}">
+                                        {{ line.status | capitalize }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="bg-forest-soft rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 100px; height: 100px;">
+                        <i class="bi bi-diagram-3 fs-1 text-forest"></i>
+                    </div>
+                    <h4 class="fw-black text-dark">Building the Foundation</h4>
+                    <p class="text-muted mx-auto mb-4" style="max-width: 400px;">
+                        Infrastructure lines help you group equipment by geographic area, making it easier for field operators to navigate and maintain nodes.
+                    </p>
+                    <div class="alert bg-forest-soft border-0 rounded-4 p-3 d-inline-block text-start" style="max-width: 400px;">
+                        <h6 class="fw-bold small mb-1 text-forest"><i class="bi bi-lightbulb-fill me-2"></i>Quick Tip</h6>
+                        <p class="small mb-0 opacity-75 text-muted">Start with a name that clearly defines a boundary or a path, like "North Boundary Fence" or "Pines Track 1".</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('line_name');
+    const counter = document.getElementById('charCounter');
+    const feedback = document.getElementById('uniquenessFeedback');
+    const submitBtn = document.getElementById('submitBtn');
+    const existingNames = [{% for l in trap_lines %}"{{ l.line_name | lower }}",{% endfor %}];
+
+    nameInput.addEventListener('input', function() {
+        const len = this.value.length;
+        counter.textContent = `${len} / 20`;
+
+        counter.classList.toggle('limit-near', len >= 15);
+        counter.classList.toggle('limit-reached', len >= 20);
+
+        const isDuplicate = existingNames.includes(this.value.trim().toLowerCase());
+        feedback.classList.toggle('d-none', !isDuplicate);
+        nameInput.classList.toggle('is-invalid', isDuplicate);
+        submitBtn.disabled = isDuplicate;
+    });
+});
+</script>
+
+<style>
+.char-counter {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    transition: color 0.2s;
+}
+.char-counter.limit-near { color: #f59e0b; }
+.char-counter.limit-reached { color: #ef4444; }
+.btn-forest { background-color: #1a5e20; color: white; border: none; }
+.btn-forest:hover { background-color: #154d1a; color: white; }
+.btn-outline-forest { color: #1a5e20; border-color: #1a5e20; }
+.btn-outline-forest:hover { background-color: #1a5e20; color: white; }
+.ls-1 { letter-spacing: 0.5px; }
+.fw-black { font-weight: 900; }
+</style>
+{% endblock %}

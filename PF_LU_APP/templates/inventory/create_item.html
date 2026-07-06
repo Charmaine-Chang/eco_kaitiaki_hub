@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% set active_page = 'stock_inventory' %}
+{% block title %}Add inventory item{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                <h1 class="h4 fw-black text-forest mb-3">Add inventory item</h1>
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Name</label>
+                        <input type="text" name="item_name" class="form-control" required maxlength="50">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Category</label>
+                        <select name="item_category" class="form-select" required>
+                            <option value="Bait">Bait</option>
+                            <option value="Toxin">Toxin</option>
+                            <option value="Equipment">Equipment</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Quantity</label>
+                        <input type="number" step="any" min="0" name="quantity" class="form-control" value="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Unit of Measure</label>
+                        <input type="text" name="unit_of_measure" class="form-control" placeholder="e.g., kg, L, units, boxes" maxlength="50">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Re-order threshold</label>
+                        <input type="number" step="any" min="0" name="threshold" class="form-control" value="0" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small">Storage area</label>
+                        <select name="storage_area_id" class="form-select" required>
+                            {% for sa in storage_areas %}
+                            <option value="{{ sa.storage_area_id }}">{{ sa.storage_area_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-forest rounded-pill fw-bold">Create</button>
+                    <a href="{{ url_for('inventory.stock_list') }}" class="btn btn-outline-forest rounded-pill fw-bold ms-2">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

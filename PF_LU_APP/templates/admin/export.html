@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+{% set active_page = 'export' %}
+
+{% block title %}Export Data – Mokomoko{% endblock %}
+
+{% block extra_head %}
+<style>
+.btn-forest { background-color: #1a5e20; color: white; border: none; }
+.btn-forest:hover { background-color: #154d1a; color: white; }
+.btn-outline-forest { border: 2px solid #1a5e20; color: #1a5e20; background: transparent; }
+.btn-outline-forest:hover { background-color: #1a5e20; color: white; }
+.ls-1 { letter-spacing: 0.5px; }
+.fw-black { font-weight: 900; }
+.smaller { font-size: 0.75rem; }
+
+.type-card {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all .2s ease;
+    background: #fff;
+}
+.type-card:hover { border-color: #1a5e20; }
+.type-card.selected {
+    border-color: #1a5e20;
+    background: rgba(26, 94, 32, 0.03);
+    box-shadow: 0 0 0 3px rgba(26, 94, 32, 0.1);
+}
+.type-card .type-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    background: #f1f5f9;
+    color: #475569;
+}
+.type-card.selected .type-icon { background: #1a5e20; color: #fff; }
+.type-card input[type="radio"] { display: none; }
+
+.field-checkbox { display: none; }
+.field-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+    margin: 3px;
+    cursor: pointer;
+    transition: all .2s ease;
+    color: #475569;
+    font-weight: 500;
+    user-select: none;
+}
+.field-pill:hover { border-color: #1a5e20; background: #f8fafc; }
+.field-checkbox:checked + .field-pill {
+    background: #1a5e20;
+    color: #fff;
+    border-color: #1a5e20;
+    box-shadow: 0 2px 8px rgba(26, 94, 32, 0.2);
+}
+.field-pill .bi-check-circle-fill { display: none; margin-right: 4px; }
+.field-checkbox:checked + .field-pill .bi-check-circle-fill { display: inline-block; }
+.field-pill.required-field { border-style: dashed; border-color: #1a5e20; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small text-uppercase ls-1">
+            {% set dash_url = url_for('operator.operator_dashboard') if session.get('role_id') == 3 else url_for('admin.admin_dashboard') %}
+            <li class="breadcrumb-item"><a href="{{ dash_url }}" class="text-decoration-none text-muted">Dashboard</a></li>
+            <li class="breadcrumb-item active text-forest fw-bold">Data Export</li>
+        </ol>
+    </nav>
+
+    <div class="row align-items-end mb-4 g-3">
+        <div class="col-md-7">
+            <h1 class="h3 fw-black text-forest mb-1">Export Organisation Data</h1>
+            <p class="text-muted small mb-0">Generate trap.nz compatible datasets for community group records.</p>
+        </div>
+        <div class="col-md-5 text-md-end">
+            <div class="d-inline-flex align-items-center gap-2 p-2 bg-white rounded-pill shadow-sm border">
+                <i class="bi bi-building ms-2 text-muted"></i>
+                {% if all_groups %}
+                <select name="group_id" form="exportForm" class="form-select form-select-sm border-0 shadow-none fw-bold text-forest" style="background:transparent;width:auto;">
+                    {% for g in all_groups %}
+                    <option value="{{ g.group_id }}" {% if current_group_id|int == g.group_id|int %}selected{% endif %}>{{ g.group_name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <span class="fw-bold text-forest small me-3">{{ group_name }}</span>
+                <input type="hidden" name="group_id" form="exportForm" value="{{ current_group_id }}">
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7 col-xl-8">
+            <form method="POST" action="{{ url_for('admin.export_data') }}" id="exportForm">
+
+                <div class="card border-0 shadow-sm rounded-4 mb-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-forest rounded-circle p-0 d-flex align-items-center justify-content-center me-2" style="width:26px;height:26px;font-size:0.7rem;">1</span>
+                            <h6 class="mb-0 fw-black text-forest text-uppercase ls-1 small">Select Export Type</h6>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-sm-6">
+                                <label class="type-card selected w-100" id="lbl-traps">
+                                    <input type="radio" name="export_type" value="traps" checked>
+                                    <div class="type-icon shadow-sm"><i class="bi bi-crosshair2"></i></div>
+                                    <div class="fw-bold text-dark mb-1 small">Trap Catch Records</div>
+                                    <div class="text-muted" style="font-size:0.7rem;">Catch checks recorded in the selected range.</div>
+                                </label>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="type-card w-100" id="lbl-bait">
+                                    <input type="radio" name="export_type" value="bait_stations">
+                                    <div class="type-icon shadow-sm"><i class="bi bi-geo-alt-fill"></i></div>
+                                    <div class="fw-bold text-dark mb-1 small">Bait Station Records</div>
+                                    <div class="text-muted" style="font-size:0.7rem;">Bait replenishment and activity records.</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 mb-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-forest rounded-circle p-0 d-flex align-items-center justify-content-center me-2" style="width:26px;height:26px;font-size:0.7rem;">2</span>
+                            <h6 class="mb-0 fw-black text-forest text-uppercase ls-1 small">Select Date Range</h6>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-sm-6">
+                                <label class="small text-muted fw-bold text-uppercase ls-1 mb-1">From Date</label>
+                                <input type="date" id="date_from" name="date_from" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" max="{{ today }}">
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="small text-muted fw-bold text-uppercase ls-1 mb-1">To Date</label>
+                                <input type="date" id="date_to" name="date_to" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" max="{{ today }}">
+                            </div>
+                        </div>
+                        <!-- Date range presets -->
+                        <div class="d-flex flex-wrap gap-1 mt-3">
+                            <span class="badge text-muted border rounded-pill px-2 py-1" style="cursor:pointer; background:#fff;" onclick="applyPreset('7d')">Last 7 Days</span>
+                            <span class="badge text-muted border rounded-pill px-2 py-1" style="cursor:pointer; background:#fff;" onclick="applyPreset('30d')">Last 30 Days</span>
+                            <span class="badge text-muted border rounded-pill px-2 py-1" style="cursor:pointer; background:#fff;" onclick="applyPreset('all')">Clear</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 mb-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-forest rounded-circle p-0 d-flex align-items-center justify-content-center me-2" style="width:26px;height:26px;font-size:0.7rem;">3</span>
+                                <h6 class="mb-0 fw-black text-forest text-uppercase ls-1 small">Configure Columns</h6>
+                            </div>
+                            <button type="button" class="btn btn-outline-forest btn-sm rounded-pill px-2 fw-bold" style="font-size:0.7rem;" onclick="setTrapNzPreset()">
+                                <i class="bi bi-patch-check-fill me-1"></i>trap.nz Preset
+                            </button>
+                        </div>
+
+                        <div id="trap-column-selector" class="column-selector">
+                            <div class="d-flex flex-wrap">
+                                {% set trap_fields = [
+                                    ('code', 'Code', True), ('date', 'Date', True), ('line', 'Line', False),
+                                    ('recorded_by', 'Recorded By', False), ('species_caught', 'Species Caught', True),
+                                    ('sex', 'Sex', False), ('maturity', 'Maturity', False), ('status', 'Status', True),
+                                    ('rebaited', 'Rebaited', True), ('bait_type', 'Bait Type', True),
+                                    ('trap_condition', 'Condition', True), ('strikes', 'Strikes', True), ('notes', 'Notes', False)
+                                ] %}
+                                {% for val, label, req in trap_fields %}
+                                <div class="field-item">
+                                    <input type="checkbox" name="columns" value="{{ val }}" id="col_{{ val }}" class="field-checkbox" data-type="traps" {% if req %}data-required="true" checked{% endif %}>
+                                    <label for="col_{{ val }}" class="field-pill {% if req %}required-field{% endif %}">
+                                        <i class="bi bi-check-circle-fill"></i>{{ label }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div id="bait-column-selector" class="column-selector d-none">
+                            <div class="d-flex flex-wrap">
+                                {% set bait_fields = [
+                                    ('code', 'Code', True), ('date', 'Date', True), ('line', 'Line', False),
+                                    ('recorded_by', 'Recorded By', False), ('target_species', 'Target Species', False),
+                                    ('active_ingredient', 'Active Ingredient', False), ('formulation', 'Formulation', False),
+                                    ('concentration', 'Concentration', False), ('bait_remaining', 'Bait Remaining', False),
+                                    ('bait_removed', 'Bait Removed', False), ('bait_added', 'Bait Added', False), ('notes', 'Notes', False)
+                                ] %}
+                                {% for val, label, req in bait_fields %}
+                                <div class="field-item">
+                                    <input type="checkbox" name="columns" value="{{ val }}" id="col_b_{{ val }}" class="field-checkbox" data-type="bait" {% if req %}data-required="true" checked{% endif %}>
+                                    <label for="col_b_{{ val }}" class="field-pill {% if req %}required-field{% endif %}">
+                                        <i class="bi bi-check-circle-fill"></i>{{ label }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 mb-3">
+                    <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-forest rounded-circle p-0 d-flex align-items-center justify-content-center me-2" style="width:26px;height:26px;font-size:0.7rem;">4</span>
+                            <h6 class="mb-0 fw-black text-forest text-uppercase ls-1 small">Generate & Download</h6>
+                        </div>
+                        <input type="hidden" name="format" id="formatInput" value="csv">
+                        <div class="d-flex gap-2">
+                            <button type="submit" onclick="document.getElementById('formatInput').value='csv';" class="btn btn-forest rounded-pill px-3 fw-bold shadow-sm btn-sm">
+                                <i class="bi bi-filetype-csv me-1"></i>Generate CSV
+                            </button>
+                            {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                            <button type="submit" onclick="document.getElementById('formatInput').value='pdf';" class="btn btn-outline-forest rounded-pill px-3 fw-bold shadow-sm btn-sm">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>Generate PDF
+                            </button>
+                            {% endif %}
+                            {% set dash_url = url_for('operator.operator_dashboard') if session.get('role_id') == 3 else url_for('admin.admin_dashboard') %}
+                            <a href="{{ dash_url }}" class="btn btn-outline-secondary rounded-pill px-3 btn-sm">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-lg-5 col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 mb-3">
+                <div class="card-header bg-white py-2 px-3 border-bottom">
+                    <h6 class="mb-0 fw-bold text-forest small text-uppercase ls-1"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Summary</h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between mb-2 small">
+                        <span class="text-muted">Type:</span>
+                        <span id="summary-type" class="fw-bold text-dark">Trap Catches</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 small">
+                        <span class="text-muted">Columns:</span>
+                        <span id="summary-cols" class="fw-bold text-dark">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between small">
+                        <span class="text-muted">Format:</span>
+                        <span id="summary-preset" class="badge rounded-pill bg-success-soft text-success border border-success-subtle">trap.nz Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 bg-light">
+                <div class="card-body p-3 small">
+                    <div class="fw-bold text-forest small text-uppercase ls-1 mb-1"><i class="bi bi-shield-lock me-1"></i>Security Notice</div>
+                    <p class="text-muted mb-0" style="font-size:0.75rem;">Only data from your managed organisations is available for export.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    const trapsRadio = document.querySelector('input[name="export_type"][value="traps"]');
+    const trapSelector = document.getElementById('trap-column-selector');
+    const baitSelector = document.getElementById('bait-column-selector');
+    const summaryType = document.getElementById('summary-type');
+    const summaryCols = document.getElementById('summary-cols');
+    const summaryPreset = document.getElementById('summary-preset');
+
+    function updateSelection() {
+        document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+        const activeRadio = document.querySelector('input[name="export_type"]:checked');
+        activeRadio.closest('.type-card').classList.add('selected');
+
+        if (trapsRadio.checked) {
+            trapSelector.classList.remove('d-none');
+            baitSelector.classList.add('d-none');
+            summaryType.innerText = 'Trap Catches';
+        } else {
+            trapSelector.classList.add('d-none');
+            baitSelector.classList.remove('d-none');
+            summaryType.innerText = 'Bait Stations';
+        }
+        updateSummary();
+    }
+
+    document.querySelectorAll('input[name="export_type"]').forEach(r => r.addEventListener('change', updateSelection));
+
+    function updateSummary() {
+        const activeType = trapsRadio.checked ? 'traps' : 'bait';
+        const selected = document.querySelectorAll(`.field-checkbox[data-type="${activeType}"]:checked`);
+        summaryCols.innerText = selected.length;
+
+        const missingReq = document.querySelectorAll(`.field-checkbox[data-type="${activeType}"][data-required="true"]:not(:checked)`).length > 0;
+        if (missingReq) {
+            summaryPreset.innerText = 'Custom';
+            summaryPreset.className = 'badge rounded-pill bg-warning-soft text-warning border border-warning-subtle';
+        } else {
+            summaryPreset.innerText = 'trap.nz Ready';
+            summaryPreset.className = 'badge rounded-pill bg-success-soft text-success border border-success-subtle';
+        }
+    }
+
+    document.querySelectorAll('.field-checkbox').forEach(cb => cb.addEventListener('change', updateSummary));
+
+    window.setTrapNzPreset = () => {
+        const activeType = trapsRadio.checked ? 'traps' : 'bait';
+        document.querySelectorAll(`.field-checkbox[data-type="${activeType}"]`).forEach(cb => {
+            cb.checked = cb.dataset.required === "true";
+        });
+        updateSummary();
+    };
+
+    updateSelection();
+
+    const dateFrom = document.getElementById('date_from');
+    const dateTo = document.getElementById('date_to');
+    
+    dateFrom.addEventListener('change', () => {
+        if (dateFrom.value) {
+            dateTo.min = dateFrom.value;
+            if (dateTo.value && dateTo.value < dateFrom.value) dateTo.value = dateFrom.value;
+        } else {
+            dateTo.removeAttribute('min');
+        }
+    });
+
+    window.applyPreset = (preset) => {
+        const today = new Date();
+        const offset = today.getTimezoneOffset();
+        const todayLocal = new Date(today.getTime() - (offset * 60 * 1000));
+        const todayStr = todayLocal.toISOString().split('T')[0];
+
+        if (preset === '7d') {
+            const pastDate = new Date();
+            pastDate.setDate(today.getDate() - 7);
+            const pastLocal = new Date(pastDate.getTime() - (offset * 60 * 1000));
+            dateFrom.value = pastLocal.toISOString().split('T')[0];
+            dateTo.value = todayStr;
+        } else if (preset === '30d') {
+            const pastDate = new Date();
+            pastDate.setDate(today.getDate() - 30);
+            const pastLocal = new Date(pastDate.getTime() - (offset * 60 * 1000));
+            dateFrom.value = pastLocal.toISOString().split('T')[0];
+            dateTo.value = todayStr;
+        } else if (preset === 'all') {
+            dateFrom.value = '';
+            dateTo.value = '';
+        }
+        dateFrom.dispatchEvent(new Event('change'));
+    };
+
+    document.getElementById('exportForm').addEventListener('submit', function() {
+        const csvBtn = this.querySelector('button[onclick*="csv"]');
+        const pdfBtn = this.querySelector('button[onclick*="pdf"]');
+        const formatVal = document.getElementById('formatInput').value;
+        
+        const activeBtn = formatVal === 'pdf' ? pdfBtn : csvBtn;
+        const original = activeBtn.innerHTML;
+        activeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+        
+        csvBtn.disabled = true;
+        pdfBtn.disabled = true;
+        
+        setTimeout(() => { 
+            csvBtn.disabled = false; 
+            pdfBtn.disabled = false;
+            activeBtn.innerHTML = original;
+        }, 3000);
+    });
+})();
+</script>
+{% endblock %}

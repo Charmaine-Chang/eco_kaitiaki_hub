@@ -1,0 +1,791 @@
+{% extends 'base.html' %}
+{% set active_page = 'group_settings' %}
+
+{% block title %}Edit Group - Kaitiaki Hub{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    :root {
+        --primary-forest: {{ group.primary_color or '#3E6A44' }};
+    }
+    .btn-forest {
+        background-color: var(--primary-forest) !important;
+        border-color: var(--primary-forest) !important;
+        color: #fff !important;
+    }
+    .btn-forest:hover {
+        filter: brightness(0.9);
+    }
+    .btn-outline-forest {
+        color: var(--primary-forest) !important;
+        border-color: var(--primary-forest) !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-forest:hover {
+        background-color: var(--primary-forest) !important;
+        color: #fff !important;
+    }
+    .upload-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.2s ease;
+        background: #f8fafc;
+        cursor: pointer;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+        border-color: var(--primary-forest);
+        background: rgba(62, 106, 68, 0.05);
+    }
+    .upload-zone i { font-size: 2.5rem; color: #94a3b8; }
+    .preview-card {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        background: #fff;
+        max-width: 320px;
+        margin: 0 auto;
+    }
+    .preview-img {
+        height: 180px;
+        background-size: cover;
+        background-position: center;
+        background-color: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #cbd5e1;
+    }
+    #map { height: 350px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .sticky-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid #e2e8f0;
+        padding: 1rem 2rem;
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+    }
+    .sticky-footer-content {
+        width: 100%;
+        max-width: 800px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+    .form-check-input:checked {
+        background-color: var(--primary-forest);
+        border-color: var(--primary-forest);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        {% if session.get('is_super_admin') %}
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.manage_groups') }}" class="text-decoration-none text-muted">Groups</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active text-forest fw-bold">{% if session.get('is_super_admin') %}Edit Group{% else %}Group Settings{% endif %}</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-4 g-4">
+    <div class="col-md-7">
+        <h1 class="h2 fw-black text-forest mb-2">{{ group.group_name }}</h1>
+        {% if session.get('is_super_admin') %}
+        <p class="text-muted mb-0 lead small">Update the identity, branding, and operational settings for this group.</p>
+        {% else %}
+        <p class="text-muted mb-0 lead small">As group coordinator, you can manage the privacy setting and geographic operational area.</p>
+        {% endif %}
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{% if session.get('is_super_admin') %}{{ url_for('admin.manage_groups') }}{% else %}{{ url_for('admin.admin_dashboard') }}{% endif %}" class="btn btn-outline-secondary rounded-pill fw-bold btn-sm px-3">
+            <i class="bi bi-arrow-left me-1"></i> Back to {% if session.get('is_super_admin') %}Groups{% else %}Dashboard{% endif %}
+        </a>
+    </div>
+</div>
+
+{% if not session.get('is_super_admin') %}
+<div class="alert alert-info border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 mb-4" role="alert">
+    <i class="bi bi-shield-lock fs-4 text-info"></i>
+    <div>
+        <strong class="d-block">Coordinator Access</strong>
+        <span class="small">You can update the group's privacy setting and geographic boundary. Contact your Super Admin to update other fields.</span>
+    </div>
+</div>
+{% endif %}
+
+<form action="{{ url_for('admin.edit_group', group_id=group.group_id) }}" method="POST" enctype="multipart/form-data" id="groupForm">
+    {% set is_super = session.get('is_super_admin', False) %}
+    <div class="row g-4">
+        <!-- Left Column: Core Info + Branding -->
+        <div class="col-lg-7">
+            {% if is_super %}
+            <!-- Section 1: Core Information -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-info-circle" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Core Information</h5>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Group Name</label>
+                        <input type="text" name="group_name" class="form-control border-0 shadow-sm rounded-3 px-4 bg-input-soft" value="{{ group.group_name }}" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Mission Description</label>
+                        <textarea name="description" class="form-control border-0 shadow-sm rounded-3 px-4 py-3 bg-input-soft" rows="4" placeholder="Tell the world about your conservation efforts...">{{ group.description }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Branding -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-palette" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Branding & Visuals</h5>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Signature Color</label>
+                        <div class="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border">
+                            <input type="color" name="primary_color" id="primary_color" class="form-control form-control-color border-0 p-0" value="{{ group.primary_color or '#3E6A44' }}" style="width: 40px; height: 40px; cursor: pointer;">
+                            <span class="text-muted small">Used for buttons, badges, and headers.</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Branding Image</label>
+                        <div class="upload-zone mb-3" id="drop-zone">
+                            <input type="file" name="branding_file" id="branding_file" class="d-none" accept="image/*">
+                            <i class="bi bi-cloud-arrow-up mb-2 d-block"></i>
+                            <p class="mb-1 fw-bold small">Drag & drop image here</p>
+                            <p class="text-muted small mb-0">or click to browse files</p>
+                        </div>
+                        <label class="form-label small text-muted">Or provide a direct image URL</label>
+                        <input type="text" name="branding_image_url" id="branding_url" class="form-control border-0 shadow-sm rounded-3 px-3 bg-input-soft" value="{{ group.branding_image or '' }}" placeholder="https://... or filename.jpg">
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if is_super or session.get('role_id') == ROLE_COORDINATOR %}
+            <!-- Section 3: Geographic Boundary -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-geo-alt" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Geographic Area</h5>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Regional Hub</label>
+                            <select name="region" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                                <option value="">Select a Region...</option>
+                                {% set regions = ['Northland', 'Auckland', 'Waikato', 'Bay of Plenty', 'Gisborne', 'Hawke\'s Bay', 'Taranaki', 'Manawatu-Wanganui', 'Wellington', 'Tasman', 'Nelson', 'Marlborough', 'West Coast', 'Canterbury', 'Otago', 'Southland'] %}
+                                {% for r in regions %}
+                                <option value="{{ r }}" {% if group.region == r %}selected{% endif %}>{{ r }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Specific Area</label>
+                            <input type="text" name="geographic_area" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" value="{{ group.geographic_area or '' }}" placeholder="e.g. Banks Peninsula">
+                        </div>
+                    </div>
+                    <div class="p-3 bg-white rounded-4 border">
+                        <div id="map" style="height: 380px;"></div>
+                        
+                        <!-- Map Control Panel -->
+                        <div class="mt-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pb-2 border-bottom">
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-forest rounded-pill fw-bold px-3 text-white" id="btn-mode-pin">
+                                        <i class="bi bi-pin-angle-fill me-1"></i> Drop Pin Mode
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-forest rounded-pill fw-bold px-3" id="btn-mode-boundary">
+                                        <i class="bi bi-pencil-fill me-1"></i> Draw Boundary Mode
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill fw-bold" id="btn-clear-boundary">
+                                        <i class="bi bi-x-circle me-1"></i> Clear Boundary
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill fw-bold" id="btn-clear-pin">
+                                        <i class="bi bi-geo-fill me-1"></i> Clear Pin
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Status & Controls for Boundary Drawing -->
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mt-2 gap-2">
+                                <div id="map-status" class="small text-muted">
+                                    <i class="bi bi-info-circle me-1"></i> Mode: Drop Pin. Click the map to define the group's central location.
+                                </div>
+                                <button type="button" class="btn btn-forest btn-sm rounded-pill fw-bold d-none px-3 text-white" id="btn-close-boundary">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Close Boundary
+                                </button>
+                            </div>
+                            
+                            <!-- Validation Error Alert -->
+                            <div class="alert alert-danger d-none mt-2 rounded-3 py-2 small" id="poly-error">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i> <span id="poly-error-msg"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="latitude" id="latitude" value="{{ group.latitude or '' }}">
+                    <input type="hidden" name="longitude" id="longitude" value="{{ group.longitude or '' }}">
+                    <input type="hidden" name="boundary_geojson" id="boundary_geojson" value="{{ group.boundary_geojson or '' }}">
+                    <input type="hidden" name="original_boundary_geojson" id="original_boundary_geojson" value="{{ group.boundary_geojson or '' }}">
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Preview + Settings -->
+        <div class="col-lg-5">
+            {% if is_super %}
+            <!-- Live Card Preview -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-eye" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Card Preview</h5>
+                    </div>
+                    <div class="preview-card border">
+                        <div class="preview-img" id="card-img" style="{% if group.branding_image %}{% if group.branding_image.startswith('http') or group.branding_image.startswith('/static') %}background-image: url('{{ group.branding_image }}'){% else %}background-image: url('{{ url_for('static', filename='uploads/groups/' + group.branding_image) }}'){% endif %}{% endif %}">
+                            {% if not group.branding_image %}<i class="bi bi-image" style="font-size: 3rem;"></i>{% endif %}
+                        </div>
+                        <div class="p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold mb-0 text-truncate me-2" id="preview-name">{{ group.group_name }}</h5>
+                                <span class="badge rounded-pill bg-success-soft text-forest smaller">Active</span>
+                            </div>
+                            <p class="text-muted small mb-3 text-truncate-2" id="preview-desc">
+                                {{ group.description or 'No mission statement provided yet.' }}
+                            </p>
+                            <button type="button" class="btn btn-sm text-white w-100 rounded-pill fw-bold bg-forest shadow-sm" id="preview-btn">View Organisation</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Section 4: Privacy Setting -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-sliders" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Privacy Setting</h5>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Access Level</label>
+                        <select name="visibility" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                            <option value="public" {% if group.visibility == 'public' %}selected{% endif %}>Public (Gallery Listed)</option>
+                            <option value="private" {% if group.visibility == 'private' %}selected{% endif %}>Private (Restricted)</option>
+                        </select>
+                        <p class="text-muted small mt-2 mb-0">Public groups are showcased in the explorer. Private groups require an invite.</p>
+                    </div>
+                </div>
+            </div>
+
+            {% if is_super %}
+            <!-- Section 5: Visibility & Status -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-gear" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Visibility & Status</h5>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Group Coordinator</label>
+                        <select name="coordinator_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                            <option value="" disabled {% if not current_coordinator %}selected{% endif %}>-- Appoint Coordinator --</option>
+                            {% for user in users %}
+                            <option value="{{ user.user_id }}" {% if current_coordinator and current_coordinator.user_id == user.user_id %}selected{% endif %}>
+                                {{ user.first_name }} {{ user.last_name }} (@{{ user.username }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-muted small mt-2 mb-0">Primary contact who manages this group's operations.</p>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Operational Status</label>
+                        <select name="status" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                            <option value="active" {% if group.status == 'active' %}selected{% endif %}>Active & Operational</option>
+                            <option value="pending" {% if group.status == 'pending' %}selected{% endif %}>Awaiting Verification</option>
+                            <option value="inactive" {% if group.status == 'inactive' %}selected{% endif %}>Inactive / Hibernating</option>
+                        </select>
+                        <div class="d-flex align-items-center mt-2">
+                            <div class="rounded-circle me-2" id="status-dot" style="width: 10px; height: 10px; background: #22c55e;"></div>
+                            <span class="small text-muted" id="status-text">Your group is currently live.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<!-- Sticky Footer -->
+<div class="sticky-footer">
+    <div class="sticky-footer-content">
+        {% if session.get('is_super_admin') %}
+        <button type="button" class="btn btn-outline-danger rounded-pill fw-bold btn-sm px-3" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
+            <i class="bi bi-trash3 me-1"></i> Delete Group
+        </button>
+        {% else %}
+        <div></div>
+        {% endif %}
+        <div class="d-flex gap-2">
+            <a href="{% if session.get('is_super_admin') %}{{ url_for('admin.manage_groups') }}{% else %}{{ url_for('admin.admin_dashboard') }}{% endif %}" class="btn btn-outline-secondary rounded-pill fw-bold btn-sm px-4">Cancel</a>
+            <button type="submit" form="groupForm" class="btn btn-forest rounded-pill fw-bold btn-sm px-4 shadow-sm">
+                <i class="bi bi-check-circle-fill me-1"></i> {% if session.get('is_super_admin') %}Apply Changes{% else %}Save Changes{% endif %}
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteGroupModal" tabindex="-1" aria-labelledby="deleteGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-danger" id="deleteGroupModalLabel">Delete Group?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pb-4">
+                <p class="text-muted small">You are about to permanently delete <strong>{{ group.group_name }}</strong>.</p>
+                <div class="p-3 bg-danger bg-opacity-10 rounded-3 mb-3">
+                    <p class="small text-danger mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>This action is irreversible.</p>
+                    <p class="small text-danger mb-0">All trap lines, equipment records, and membership data will be destroyed.</p>
+                </div>
+                <p class="small text-muted mb-3">Type the group name <strong class="text-dark">{{ group.group_name }}</strong> to confirm.</p>
+                <input type="text" id="confirmGroupName" class="form-control rounded-3" placeholder="Type group name here...">
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4">
+                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('admin.delete_group', group_id=group.group_id) }}" method="POST" id="deleteForm">
+                    <button type="submit" id="finalDeleteBtn" class="btn btn-danger rounded-pill px-4 fw-bold btn-sm" disabled>
+                        Confirm Deletion
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+    <div id="saveToast" class="toast align-items-center text-white bg-forest border-0 rounded-4 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex p-2">
+            <div class="toast-body d-flex align-items-center gap-2">
+                <i class="bi bi-check2-all fs-4"></i>
+                <div>
+                    <strong class="d-block">Success!</strong>
+                    <span class="small opacity-75">Group identity has been updated.</span>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+    const geojsonInput = document.getElementById('boundary_geojson');
+    const mapStatus = document.getElementById('map-status');
+    
+    const btnModePin = document.getElementById('btn-mode-pin');
+    const btnModeBoundary = document.getElementById('btn-mode-boundary');
+    const btnClearBoundary = document.getElementById('btn-clear-boundary');
+    const btnClearPin = document.getElementById('btn-clear-pin');
+    const btnCloseBoundary = document.getElementById('btn-close-boundary');
+    const polyError = document.getElementById('poly-error');
+    const polyErrorMsg = document.getElementById('poly-error-msg');
+
+    let currentMode = 'pin'; // 'pin' or 'boundary'
+    let drawModeActive = false; // true if drawing boundary in progress
+
+    // Initialize Map
+    const map = L.map('map').setView([{{ group.latitude or -41.2865 }}, {{ group.longitude or 174.7762 }}], {{ '12' if group.latitude else '5' }});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+
+    let marker = null;
+    let polygon = null;
+    let polyPoints = [];
+    let polyLine = null;
+    let vertexMarkers = [];
+
+    // Load existing Pin if present
+    if (latInput && latInput.value && lngInput && lngInput.value) {
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        marker.on('dragend', function(e) {
+            const { lat, lng } = e.target.getLatLng();
+            updateCoords(lat, lng);
+        });
+    }
+
+    const vertexIcon = L.divIcon({
+        className: 'custom-vertex-icon',
+        html: '<div style="background-color: var(--primary-forest, #3E6A44); border: 2px solid white; border-radius: 50%; width: 12px; height: 12px; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>',
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+    });
+
+    function renderDraggableVertices() {
+        clearVertexMarkers();
+        if (!polygon) return;
+        
+        const latlngs = polygon.getLatLngs()[0];
+        latlngs.forEach((latlng, idx) => {
+            const vm = L.marker(latlng, { icon: vertexIcon, draggable: true }).addTo(map);
+            vertexMarkers.push(vm);
+            
+            vm.on('drag', function(ev) {
+                polyPoints[idx] = ev.latlng;
+                polygon.setLatLngs(polyPoints);
+                updateBoundaryGeoJSON(polyPoints);
+            });
+        });
+        
+        if (mapStatus) mapStatus.innerHTML = '<i class="bi bi-info-circle me-1 text-success"></i> Boundary loaded. Drag vertex handles to reshape. Save changes to apply.';
+    }
+
+    function clearVertexMarkers() {
+        vertexMarkers.forEach(m => map.removeLayer(m));
+        vertexMarkers = [];
+    }
+
+    function updateBoundaryGeoJSON(points) {
+        if (!points || points.length === 0) {
+            if (geojsonInput) geojsonInput.value = '';
+            return;
+        }
+        const coords = points.map(p => [p.lng, p.lat]);
+        coords.push([points[0].lng, points[0].lat]); // Close GeoJSON loop
+        
+        const geojson = {
+            type: 'Polygon',
+            coordinates: [coords]
+        };
+        if (geojsonInput) geojsonInput.value = JSON.stringify(geojson);
+    }
+
+    // Load existing Boundary if present
+    if (geojsonInput && geojsonInput.value) {
+        try {
+            const geo = JSON.parse(geojsonInput.value);
+            if (geo.type === 'Polygon') {
+                const latlngs = geo.coordinates[0].map(pt => [pt[1], pt[0]]);
+                // GeoJSON has identical first/last coordinates. L.polygon closes automatically, so we slice the last one.
+                if (latlngs.length > 1 && latlngs[0][0] === latlngs[latlngs.length - 1][0] && latlngs[0][1] === latlngs[latlngs.length - 1][1]) {
+                    latlngs.pop();
+                }
+                polyPoints = latlngs.map(pt => L.latLng(pt[0], pt[1]));
+                polygon = L.polygon(polyPoints, { color: '#3E6A44', fillColor: '#3E6A44', fillOpacity: 0.2 }).addTo(map);
+                map.fitBounds(polygon.getBounds());
+                renderDraggableVertices();
+            }
+        } catch (e) {
+            console.error("Error parsing existing boundary", e);
+        }
+    }
+
+    // Switch to Pin Mode
+    if (btnModePin) {
+        btnModePin.addEventListener('click', () => {
+            if (drawModeActive) {
+                if (!confirm("You have an unsaved/unclosed boundary drawing. Switch mode and discard current drawing?")) {
+                    return;
+                }
+                clearDrawingState();
+            }
+            currentMode = 'pin';
+            if (btnModePin) btnModePin.className = 'btn btn-sm btn-forest rounded-pill fw-bold px-3 text-white';
+            if (btnModeBoundary) btnModeBoundary.className = 'btn btn-sm btn-outline-forest rounded-pill fw-bold px-3';
+            if (btnCloseBoundary) btnCloseBoundary.classList.add('d-none');
+            if (mapStatus) mapStatus.innerHTML = '<i class="bi bi-info-circle me-1"></i> Mode: Drop Pin. Click the map to define the group\'s central location.';
+            if (polyError) polyError.classList.add('d-none');
+        });
+    }
+
+    // Switch to Boundary Mode
+    if (btnModeBoundary) {
+        btnModeBoundary.addEventListener('click', () => {
+            currentMode = 'boundary';
+            drawModeActive = true;
+            
+            // Discard any existing complete boundary to redraw
+            clearVertexMarkers();
+            if (polygon) {
+                map.removeLayer(polygon);
+                polygon = null;
+            }
+            if (geojsonInput) geojsonInput.value = '';
+            
+            if (btnModePin) btnModePin.className = 'btn btn-sm btn-outline-forest rounded-pill fw-bold px-3';
+            if (btnModeBoundary) btnModeBoundary.className = 'btn btn-sm btn-forest rounded-pill fw-bold px-3 text-white';
+            if (btnCloseBoundary) btnCloseBoundary.classList.remove('d-none');
+            if (mapStatus) mapStatus.innerHTML = '<i class="bi bi-info-circle me-1"></i> Mode: Draw Boundary. Click to add points. At least 3 points required.';
+            if (polyError) polyError.classList.add('d-none');
+        });
+    }
+
+    // Map click handler
+    map.on('click', function(e) {
+        const { lat, lng } = e.latlng;
+        
+        if (currentMode === 'pin') {
+            if (marker) {
+                marker.setLatLng(e.latlng);
+            } else {
+                marker = L.marker(e.latlng, { draggable: true }).addTo(map);
+                marker.on('dragend', function(ev) {
+                    const pos = ev.target.getLatLng();
+                    updateCoords(pos.lat, pos.lng);
+                });
+            }
+            updateCoords(lat, lng);
+        } else if (currentMode === 'boundary' && drawModeActive) {
+            polyPoints.push(e.latlng);
+            
+            // Add vertex marker
+            const vm = L.circleMarker(e.latlng, { radius: 6, color: '#3E6A44', fillColor: '#fff', fillOpacity: 1 }).addTo(map);
+            vertexMarkers.push(vm);
+            
+            // Clicking first vertex can also close
+            if (vertexMarkers.length === 1) {
+                vm.on('click', function(ev) {
+                    L.DomEvent.stopPropagation(ev);
+                    closeBoundaryPolygon();
+                });
+            }
+            
+            // Draw connecting line
+            if (polyLine) {
+                polyLine.setLatLngs(polyPoints);
+            } else {
+                polyLine = L.polyline(polyPoints, { color: '#3E6A44', dashArray: '5, 5' }).addTo(map);
+            }
+            
+            if (mapStatus) mapStatus.innerHTML = `<i class="bi bi-pencil-fill me-1"></i> Drawing: Added ${polyPoints.length} vertex(es). Click first vertex or "Close Boundary" to finish.`;
+        }
+    });
+
+    function closeBoundaryPolygon() {
+        if (polyPoints.length < 3) {
+            showError("Invalid area. A boundary requires at least 3 points before closing.");
+            return;
+        }
+        
+        // Remove drawing layers
+        if (polyLine) {
+            map.removeLayer(polyLine);
+            polyLine = null;
+        }
+        clearVertexMarkers();
+        
+        // Create actual polygon
+        polygon = L.polygon(polyPoints, { color: '#3E6A44', fillColor: '#3E6A44', fillOpacity: 0.2 }).addTo(map);
+        
+        updateBoundaryGeoJSON(polyPoints);
+        drawModeActive = false;
+        
+        renderDraggableVertices();
+        
+        // Return to normal boundary view mode
+        if (btnCloseBoundary) btnCloseBoundary.classList.add('d-none');
+        if (polyError) polyError.classList.add('d-none');
+    }
+
+    if (btnCloseBoundary) btnCloseBoundary.addEventListener('click', closeBoundaryPolygon);
+
+    function clearDrawingState() {
+        if (polyLine) { map.removeLayer(polyLine); polyLine = null; }
+        clearVertexMarkers();
+        polyPoints = [];
+        drawModeActive = false;
+    }
+
+    // Clear Boundary
+    if (btnClearBoundary) {
+        btnClearBoundary.addEventListener('click', () => {
+            clearDrawingState();
+            clearVertexMarkers();
+            if (polygon) {
+                map.removeLayer(polygon);
+                polygon = null;
+            }
+            if (geojsonInput) geojsonInput.value = '';
+            
+            // Reset mode if drawing was in progress
+            currentMode = 'pin';
+            if (btnModePin) btnModePin.className = 'btn btn-sm btn-forest rounded-pill fw-bold px-3 text-white';
+            if (btnModeBoundary) btnModeBoundary.className = 'btn btn-sm btn-outline-forest rounded-pill fw-bold px-3';
+            if (btnCloseBoundary) btnCloseBoundary.classList.add('d-none');
+            if (mapStatus) mapStatus.innerHTML = '<i class="bi bi-info-circle me-1"></i> Mode: Drop Pin. Click the map to define the group\'s central location.';
+            if (polyError) polyError.classList.add('d-none');
+        });
+    }
+
+    // Clear Pin
+    if (btnClearPin) {
+        btnClearPin.addEventListener('click', () => {
+            if (marker) {
+                map.removeLayer(marker);
+                marker = null;
+            }
+            if (latInput) latInput.value = '';
+            if (lngInput) lngInput.value = '';
+        });
+    }
+
+    function updateCoords(lat, lng) {
+        if (latInput) latInput.value = lat.toFixed(6);
+        if (lngInput) lngInput.value = lng.toFixed(6);
+    }
+
+    function showError(msg) {
+        if (polyErrorMsg) polyErrorMsg.innerText = msg;
+        if (polyError) polyError.classList.remove('d-none');
+    }
+
+    // Prevent submission if drawing is active but unclosed
+    const groupForm = document.getElementById('groupForm');
+    if (groupForm) {
+        groupForm.addEventListener('submit', function(e) {
+            if (drawModeActive) {
+                e.preventDefault();
+                showError("Invalid area. The polygon is not closed. Please close the boundary or cancel drawing before saving.");
+                if (polyError) polyError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    }
+
+    // Handle branding color input
+    const colorInput = document.getElementById('primary_color');
+    const previewBtn = document.getElementById('preview-btn');
+    if (colorInput) {
+        colorInput.addEventListener('input', (e) => {
+            const color = e.target.value;
+            document.documentElement.style.setProperty('--primary-forest', color);
+            document.querySelectorAll('.bg-forest').forEach(el => {
+                el.style.backgroundColor = color;
+            });
+            document.querySelectorAll('.text-forest').forEach(el => {
+                el.style.color = color;
+            });
+            if (previewBtn) previewBtn.style.backgroundColor = color;
+        });
+    }
+
+    // Handle branding drop-zone and live updates if visible (Super Admin only)
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('branding_file');
+    const urlInput = document.getElementById('branding_url');
+    const cardImg = document.getElementById('card-img');
+    if (dropZone) {
+        dropZone.addEventListener('click', () => { if (fileInput) fileInput.click(); });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length && fileInput) {
+                fileInput.files = e.dataTransfer.files;
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+    }
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
+    }
+    if (urlInput) {
+        urlInput.addEventListener('input', (e) => {
+            if (e.target.value && cardImg) { cardImg.style.backgroundImage = `url('${e.target.value}')`; cardImg.innerHTML = ''; }
+        });
+    }
+    function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => { if (cardImg) { cardImg.style.backgroundImage = `url('${e.target.result}')`; cardImg.innerHTML = ''; } };
+        reader.readAsDataURL(file);
+    }
+
+    const statusSelect = document.querySelector('select[name="status"]');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    if (statusSelect) {
+        statusSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val === 'active') { if (statusDot) statusDot.style.background = '#22c55e'; if (statusText) statusText.innerText = 'Your group is currently live.'; }
+            else if (val === 'pending') { if (statusDot) statusDot.style.background = '#f59e0b'; if (statusText) statusText.innerText = 'Awaiting administrative verification.'; }
+            else { if (statusDot) statusDot.style.background = '#ef4444'; if (statusText) statusText.innerText = 'Group is hidden from public view.'; }
+        });
+    }
+
+    {% if get_flashed_messages(category_filter=['success']) %}
+    const toastEl = document.getElementById('saveToast');
+    if (toastEl) {
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+    {% endif %}
+
+    const gnameInput = document.querySelector('input[name="group_name"]');
+    if (gnameInput) {
+        gnameInput.addEventListener('input', e => {
+            const pName = document.getElementById('preview-name');
+            if (pName) pName.innerText = e.target.value || 'Group Name';
+        });
+    }
+    const descTextarea = document.querySelector('textarea[name="description"]');
+    if (descTextarea) {
+        descTextarea.addEventListener('input', e => {
+            const pDesc = document.getElementById('preview-desc');
+            if (pDesc) pDesc.innerText = e.target.value || 'No mission statement provided yet.';
+        });
+    }
+
+    const confirmInput = document.getElementById('confirmGroupName');
+    const finalDeleteBtn = document.getElementById('finalDeleteBtn');
+    const targetName = "{{ group.group_name }}";
+    if (confirmInput && finalDeleteBtn) {
+        confirmInput.addEventListener('input', (e) => { finalDeleteBtn.disabled = (e.target.value !== targetName); });
+    }
+})();
+</script>
+{% endblock %}

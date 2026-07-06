@@ -1,0 +1,560 @@
+{% extends 'base.html' %}
+{% set active_page = 'data_graphs' %}
+
+{% block title %}Trend Analytics - Predator Control Insights{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { background-color: #f8fafc; }
+
+    /* Forest colour utilities */
+    .btn-forest { background-color: #064e3b; color: white; border: none; transition: all 0.2s; }
+    .btn-forest:hover { background-color: #047857; color: white; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(4,120,87,0.2); }
+    .btn-outline-forest { color: #064e3b; border-color: #064e3b; }
+    .btn-outline-forest:hover, .btn-check:checked + .btn-outline-forest { background-color: #064e3b !important; color: white !important; }
+    .text-success-premium { color: #059669; }
+    .ls-1 { letter-spacing: 1px; }
+    .fw-black { font-weight: 900; }
+
+    /* KPI cards */
+    .kpi-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        background: linear-gradient(180deg, #ffffff 0%, #fdfdfd 100%);
+    }
+    .kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01) !important;
+        border-bottom: 3px solid #059669 !important;
+    }
+    .shadow-xs { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+    /* Bento cards */
+    .bento-card {
+        border-radius: 1.25rem;
+        border: 1px solid rgba(226,232,240,0.8);
+        background: #ffffff;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -2px rgba(0,0,0,0.02);
+        transition: box-shadow 0.3s ease;
+    }
+    .bento-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -4px rgba(0,0,0,0.02);
+    }
+
+    /* Interval toggle buttons */
+    .interval-btn {
+        min-width: 64px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .interval-btn.active {
+        background-color: #064e3b !important;
+        color: white !important;
+        border-color: #064e3b !important;
+    }
+
+    /* Season badge */
+    .season-spring  { background: rgba(34,197,94,0.12);  color: #16a34a; border: 1px solid #bbf7d0; }
+    .season-summer  { background: rgba(251,191,36,0.12); color: #d97706; border: 1px solid #fde68a; }
+    .season-autumn  { background: rgba(249,115,22,0.12); color: #ea580c; border: 1px solid #fed7aa; }
+    .season-winter  { background: rgba(99,102,241,0.12); color: #4f46e5; border: 1px solid #c7d2fe; }
+
+    /* No-data state */
+    .no-data-state { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+    /* Chart containers */
+    .chart-wrap { position: relative; height: 280px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Breadcrumbs ─────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small text-uppercase ls-1 mb-0">
+            <li class="breadcrumb-item">
+                <a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}"
+                   class="text-decoration-none text-muted">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.data_graphs') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.data_graphs') }}{% else %}{{ url_for('observer.data_graphs') }}{% endif %}"
+                   class="text-decoration-none text-muted">Data Analytics</a>
+            </li>
+            <li class="breadcrumb-item active text-forest fw-bold">Trend Analytics</li>
+        </ol>
+    </nav>
+    {% if role == 'observer' %}
+    <span class="badge bg-warning-soft text-warning border border-warning-subtle py-2 px-3 rounded-pill fw-bold small">
+        <i class="bi bi-eye-fill me-1"></i> Observer View (Read-Only Mode)
+    </span>
+    {% endif %}
+</div>
+
+<!-- ── Page Header ─────────────────────────────────────── -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body p-4 bg-white border-bottom border-forest border-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h1 class="h4 fw-black text-dark mb-1"><i class="bi bi-graph-up-arrow text-success-premium me-2"></i>Trend Analytics</h1>
+                <p class="text-muted small mb-0">Time-based trends for catches, bait consumption, and station checks across your lines.</p>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <form method="GET" class="d-flex gap-2 flex-wrap align-items-center mb-0">
+                    <input type="hidden" name="interval" value="{{ interval }}" id="hiddenInterval">
+                    <!-- Line Select -->
+                    <div class="input-group input-group-sm" style="width: auto;">
+                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-geo-alt text-success"></i></span>
+                        <select class="form-select border-start-0 bg-light fw-semibold" name="line_id" onchange="this.form.submit()">
+                            <option value="">All Lines</option>
+                            {% for line in lines %}
+                            <option value="{{ line.line_id }}" {% if selected_line_id|string == line.line_id|string %}selected{% endif %}>{{ line.line_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Date Range -->
+                    <div class="input-group input-group-sm" style="width: auto;">
+                        <span class="input-group-text bg-light">Range</span>
+                        <input type="date" class="form-control bg-light" name="start_date" value="{{ start_date or '' }}">
+                        <span class="input-group-text bg-light"><i class="bi bi-arrow-right"></i></span>
+                        <input type="date" class="form-control bg-light" name="end_date" value="{{ end_date or '' }}">
+                        <button class="btn btn-outline-forest" type="submit">Filter</button>
+                    </div>
+
+                    <!-- Interval -->
+                    <div class="btn-group shadow-xs ms-2" role="group" aria-label="Time interval">
+                        {% for iv, label in [('day','Day'), ('week','Week'), ('month','Month'), ('year','Year')] %}
+                        <button type="button" 
+                                onclick="document.getElementById('hiddenInterval').value='{{ iv }}'; this.form.submit();"
+                                class="btn btn-sm btn-outline-forest interval-btn {% if interval == iv %}active{% endif %}">
+                            {{ label }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── KPI Row ──────────────────────────────────────────── -->
+<div class="row mb-3 g-3">
+    <div class="col-6 col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+            <div class="card-body p-3 d-flex align-items-center gap-3">
+                <div class="bg-success-soft text-forest p-3 rounded-3">
+                    <i class="bi bi-crosshair fs-4"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-bold text-uppercase ls-1 mb-0">Total Catches</div>
+                    <div class="h3 fw-black text-dark mb-0" id="kpi-catches">{{ kpis.total_catches }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+            <div class="card-body p-3 d-flex align-items-center gap-3">
+                <div class="bg-success-soft text-forest p-3 rounded-3">
+                    <i class="bi bi-bucket fs-4"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-bold text-uppercase ls-1 mb-0">Bait Consumed</div>
+                    <div class="h3 fw-black text-dark mb-0" id="kpi-bait">{{ kpis.total_bait_consumed }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+            <div class="card-body p-3 d-flex align-items-center gap-3">
+                <div class="bg-success-soft text-forest p-3 rounded-3">
+                    <i class="bi bi-broadcast fs-4"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-bold text-uppercase ls-1 mb-0">Station Checks</div>
+                    <div class="h3 fw-black text-dark mb-0" id="kpi-checks">{{ kpis.total_station_checks }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Trend Charts Row ────────────────────────────────── -->
+<div class="row mb-3 g-3">
+
+    <!-- Catches Trend -->
+    <div class="col-lg-4">
+        <div class="bento-card h-100 overflow-hidden d-flex flex-column">
+            <div class="bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-crosshair me-2"></i>Catches Over Time</h6>
+                <span class="badge bg-success-soft text-forest border border-success-subtle rounded-pill small fw-normal">
+                    {% if interval == 'day' %}Daily{% elif interval == 'week' %}Weekly{% elif interval == 'month' %}Monthly{% else %}Yearly{% endif %}
+                </span>
+            </div>
+            <div class="px-4 pb-4 flex-grow-1">
+                <div class="chart-wrap">
+                    <canvas id="catchesChart"></canvas>
+                </div>
+                <div id="catchesSummary" class="mt-3 p-3 bg-light rounded-3 border-start border-3 border-forest small text-muted"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bait Consumption Trend -->
+    <div class="col-lg-4">
+        <div class="bento-card h-100 overflow-hidden d-flex flex-column">
+            <div class="bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-bucket me-2"></i>Bait Consumption</h6>
+                <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small fw-normal">Units Added</span>
+            </div>
+            <div class="px-4 pb-4 flex-grow-1">
+                <div class="chart-wrap">
+                    <canvas id="baitChart"></canvas>
+                </div>
+                <div id="baitSummary" class="mt-3 p-3 bg-light rounded-3 border-start border-3 border-forest small text-muted"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Station Checks Trend -->
+    <div class="col-lg-4">
+        <div class="bento-card h-100 overflow-hidden d-flex flex-column">
+            <div class="bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-broadcast me-2"></i>Station Checks</h6>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small fw-normal">Visit Count</span>
+            </div>
+            <div class="px-4 pb-4 flex-grow-1">
+                <div class="chart-wrap">
+                    <canvas id="stationChart"></canvas>
+                </div>
+                <div id="stationSummary" class="mt-3 p-3 bg-light rounded-3 border-start border-3 border-forest small text-muted"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Seasonal Comparison ─────────────────────────────── -->
+<div class="row mb-3 g-3">
+    <div class="col-12">
+        <div class="bento-card overflow-hidden">
+            <div class="bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-bold text-forest"><i class="bi bi-thermometer-half me-2"></i>Seasonal Activity Comparison</h6>
+                    <small class="text-muted">Southern Hemisphere seasons: Spring (Sep–Nov) · Summer (Dec–Feb) · Autumn (Mar–May) · Winter (Jun–Aug)</small>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge season-spring rounded-pill px-3 py-2 small fw-semibold">🌸 Spring</span>
+                    <span class="badge season-summer rounded-pill px-3 py-2 small fw-semibold">☀️ Summer</span>
+                    <span class="badge season-autumn rounded-pill px-3 py-2 small fw-semibold">🍂 Autumn</span>
+                    <span class="badge season-winter rounded-pill px-3 py-2 small fw-semibold">❄️ Winter</span>
+                </div>
+            </div>
+
+            <div class="row g-0 px-4 pb-4">
+                <!-- Seasonal multi-bar chart -->
+                <div class="col-lg-8">
+                    <div class="chart-wrap pt-3" style="height: 300px;">
+                        <canvas id="seasonalChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Seasonal breakdown table -->
+                <div class="col-lg-4 pt-3 ps-lg-4">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0" style="font-size:0.82rem;">
+                            <thead>
+                                <tr class="border-bottom text-muted">
+                                    <th class="p-1 fw-semibold">Season</th>
+                                    <th class="p-1 text-end fw-semibold">Catches</th>
+                                    <th class="p-1 text-end fw-semibold">Bait</th>
+                                    <th class="p-1 text-end fw-semibold">Checks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="seasonalTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="seasonalSummary" class="mt-3 p-3 bg-light rounded-3 border-start border-3 border-forest small text-muted"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── No data alert ──────────────────────────────────── -->
+<div id="noDataAlert" class="alert alert-info shadow-sm d-none rounded-4 p-4 text-center">
+    <i class="bi bi-info-circle-fill fs-2 mb-3 d-block opacity-50"></i>
+    <div class="h5 fw-bold">No Historical Data Found</div>
+    <p class="mb-0 text-muted">Once your team starts logging catches, bait top-ups and station checks, time-based trends will appear here.</p>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    // ── Raw data ──────────────────────────────────────────────
+    const catchesRaw   = {{ catches_trend | safe }};
+    const baitRaw      = {{ bait_trend | safe }};
+    const stationRaw   = {{ station_trend | safe }};
+    const seasonalRaw  = {{ seasonal_data | safe }};
+    const currentInterval = "{{ interval }}";
+
+    // Hide all if empty
+    const hasData = catchesRaw.length > 0 || baitRaw.length > 0 || stationRaw.length > 0;
+    if (!hasData) {
+        document.getElementById('noDataAlert').classList.remove('d-none');
+    }
+
+    // ── Chart defaults ────────────────────────────────────────
+    Chart.defaults.font.family = "'Inter', 'Outfit', sans-serif";
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.scale.grid.color = '#f1f5f9';
+
+    function makeTooltipOptions(valueSuffix) {
+        return {
+            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+            titleColor: '#f8fafc',
+            bodyColor: '#e2e8f0',
+            padding: 12,
+            cornerRadius: 10,
+            displayColors: true,
+            titleFont: { size: 13, weight: 'bold' },
+            bodyFont: { size: 12 },
+            callbacks: {
+                label: function(context) {
+                    const val = context.parsed.y !== undefined ? context.parsed.y : context.raw;
+                    return `  ${context.dataset.label}: ${val}${valueSuffix || ''}`;
+                }
+            }
+        };
+    }
+
+    // ── Helper: build line chart ──────────────────────────────
+    function buildLineChart(ctxId, rawData, labelKey, valueKey, label, color, valueSuffix) {
+        const ctx = document.getElementById(ctxId).getContext('2d');
+        const labels = rawData.map(d => d[labelKey]);
+        const values = rawData.map(d => parseFloat(d[valueKey]) || 0);
+
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: values,
+                    borderColor: color,
+                    backgroundColor: (context) => {
+                        const c = context.chart.ctx;
+                        const grad = c.createLinearGradient(0, 0, 0, 280);
+                        grad.addColorStop(0, color.replace(')', ', 0.35)').replace('rgb', 'rgba'));
+                        grad.addColorStop(1, color.replace(')', ', 0.0)').replace('rgb', 'rgba'));
+                        return grad;
+                    },
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: color,
+                    pointBorderWidth: 2,
+                    pointRadius: rawData.length > 60 ? 0 : 4,
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: color,
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: makeTooltipOptions(valueSuffix || '')
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, font: { size: 10 } },
+                        grid: { drawBorder: false }
+                    },
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: { font: { size: 10 }, maxTicksLimit: 12 }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── 1. Catches trend chart ────────────────────────────────
+    buildLineChart('catchesChart', catchesRaw, 'period', 'count',
+        'Catches', 'rgb(5, 150, 105)');
+    generateTrendSummary('catchesSummary', catchesRaw, 'count', 'catches');
+
+    // ── 2. Bait consumption trend chart ──────────────────────
+    buildLineChart('baitChart', baitRaw, 'period', 'total_bait',
+        'Bait Consumed', 'rgb(6, 182, 212)', ' units');
+    generateTrendSummary('baitSummary', baitRaw, 'total_bait', 'bait consumed');
+
+    // ── 3. Station checks trend chart ────────────────────────
+    buildLineChart('stationChart', stationRaw, 'period', 'count',
+        'Station Checks', 'rgb(245, 158, 11)');
+    generateTrendSummary('stationSummary', stationRaw, 'count', 'station checks');
+
+    // ── 4. Seasonal comparison chart ─────────────────────────
+    const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
+    const seasonColors = {
+        Spring: { bg: 'rgba(34,197,94,0.75)',  border: '#16a34a' },
+        Summer: { bg: 'rgba(251,191,36,0.75)', border: '#d97706' },
+        Autumn: { bg: 'rgba(249,115,22,0.75)', border: '#ea580c' },
+        Winter: { bg: 'rgba(99,102,241,0.75)', border: '#4f46e5' },
+    };
+    const seasonMap = {};
+    seasonalRaw.forEach(d => { seasonMap[d.season] = d; });
+
+    const catches_by_season  = seasonOrder.map(s => (seasonMap[s] || {}).catches || 0);
+    const bait_by_season     = seasonOrder.map(s => parseFloat((seasonMap[s] || {}).bait_consumed || 0));
+    const checks_by_season   = seasonOrder.map(s => (seasonMap[s] || {}).station_checks || 0);
+    const bgColors           = seasonOrder.map(s => seasonColors[s].bg);
+    const borderColors       = seasonOrder.map(s => seasonColors[s].border);
+
+    const seasonCtx = document.getElementById('seasonalChart').getContext('2d');
+    new Chart(seasonCtx, {
+        type: 'bar',
+        data: {
+            labels: seasonOrder,
+            datasets: [
+                {
+                    label: 'Catches',
+                    data: catches_by_season,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Bait Consumed',
+                    data: bait_by_season,
+                    backgroundColor: seasonOrder.map(s => seasonColors[s].bg.replace('0.75)', '0.4)')),
+                    borderColor: borderColors,
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    borderDash: [4, 4]
+                },
+                {
+                    label: 'Station Checks',
+                    data: checks_by_season,
+                    backgroundColor: seasonOrder.map(s => seasonColors[s].bg.replace('0.75)', '0.25)')),
+                    borderColor: borderColors,
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { usePointStyle: true, boxWidth: 8, padding: 12, font: { size: 11 } }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.92)',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#e2e8f0',
+                    padding: 12,
+                    cornerRadius: 10,
+                    displayColors: true,
+                    titleFont: { size: 13, weight: 'bold' },
+                    bodyFont: { size: 12 },
+                    callbacks: {
+                        label: function(context) {
+                            return `  ${context.dataset.label}: ${context.raw}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } }, grid: { drawBorder: false } },
+                x: { grid: { display: false, drawBorder: false }, ticks: { font: { size: 12, weight: '600' } } }
+            }
+        }
+    });
+
+    // Seasonal table
+    const tbody = document.getElementById('seasonalTableBody');
+    const seasonIcons = { Spring: '🌸', Summer: '☀️', Autumn: '🍂', Winter: '❄️' };
+    seasonOrder.forEach(s => {
+        const d = seasonMap[s] || {};
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="p-1 fw-semibold">${seasonIcons[s] || ''} ${s}</td>
+            <td class="p-1 text-end fw-bold text-forest">${d.catches || 0}</td>
+            <td class="p-1 text-end">${parseFloat(d.bait_consumed || 0).toFixed(1)}</td>
+            <td class="p-1 text-end">${d.station_checks || 0}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Seasonal summary
+    const seasonsSummaryEl = document.getElementById('seasonalSummary');
+    const activeSeason = seasonOrder.reduce((best, s) => {
+        return (seasonMap[s] || {catches:0}).catches > (seasonMap[best] || {catches:0}).catches ? s : best;
+    }, seasonOrder[0]);
+    const quietSeason = seasonOrder.reduce((worst, s) => {
+        return (seasonMap[s] || {catches:0}).catches < (seasonMap[worst] || {catches:0}).catches ? s : worst;
+    }, seasonOrder[0]);
+    const activeCount = (seasonMap[activeSeason] || {catches: 0}).catches;
+    const quietCount  = (seasonMap[quietSeason] || {catches: 0}).catches;
+    if (activeCount > 0) {
+        seasonsSummaryEl.innerHTML = `${seasonIcons[activeSeason]} <strong>${activeSeason}</strong> shows the highest catch activity (<strong>${activeCount}</strong> records), while ${seasonIcons[quietSeason]} <strong>${quietSeason}</strong> is quietest (<strong>${quietCount}</strong> records).`;
+    } else {
+        seasonsSummaryEl.innerHTML = 'No seasonal data available yet.';
+    }
+
+    // ── Summary generator ─────────────────────────────────────
+    function generateTrendSummary(elId, raw, valueKey, noun) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        if (!raw || raw.length === 0) {
+            el.innerHTML = `No ${noun} trend data to summarize.`;
+            return;
+        }
+        const values = raw.map(d => parseFloat(d[valueKey]) || 0);
+        const total  = values.reduce((s, v) => s + v, 0);
+        if (total === 0) {
+            el.innerHTML = `No ${noun} recorded for this period.`;
+            return;
+        }
+        const peak = raw.reduce((best, d) => parseFloat(d[valueKey]) > parseFloat(best[valueKey]) ? d : best, raw[0]);
+        if (raw.length === 1) {
+            el.innerHTML = `Total: <strong>${parseFloat(peak[valueKey]).toFixed(valueKey === 'total_bait' ? 1 : 0)}</strong> ${noun} recorded.`;
+            return;
+        }
+        const mid  = Math.floor(raw.length / 2);
+        const avgFirst  = values.slice(0, mid).reduce((s, v) => s + v, 0) / Math.max(mid, 1);
+        const avgSecond = values.slice(mid).reduce((s, v) => s + v, 0) / Math.max(values.length - mid, 1);
+        let trend = '';
+        if (avgSecond > avgFirst * 1.05)       trend = '📈 <strong>upward trend</strong>';
+        else if (avgSecond < avgFirst * 0.95)  trend = '📉 <strong>downward trend</strong>';
+        else                                    trend = '➡️ activity remained <strong>stable</strong>';
+        el.innerHTML = `Peak: <strong>${parseFloat(peak[valueKey]).toFixed(valueKey === 'total_bait' ? 1 : 0)}</strong> ${noun} on <strong>${peak['period']}</strong>. Overall ${trend} over the selected period.`;
+    }
+
+});
+</script>
+{% endblock %}

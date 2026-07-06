@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% set active_page = 'storage_areas' %}
+
+{% block title %}Create Storage Area - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 py-4">
+    <div class="premium-breadcrumb mb-4">
+        <a href="{{ url_for('main.home') }}">
+            <i class="bi bi-house-door breadcrumb-icon"></i> Home
+        </a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="{{ url_for('admin.view_storage_areas') }}" class="text-decoration-none text-muted">Storage Areas</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="text-dark fw-bold">Create New</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h2 class="h4 fw-black text-forest mb-3">
+                        <i class="bi bi-plus-circle me-2"></i>Create Storage Area
+                    </h2>
+                    <p class="text-muted mb-4">Add a new storage location for organizing and tracking your inventory and equipment.</p>
+
+                    <form method="POST" action="{{ url_for('admin.create_storage_area') }}" novalidate>
+                        <div class="mb-4">
+                            <label for="storage_area_name" class="form-label small fw-bold text-uppercase text-secondary ls-1">Storage Area Name <span class="text-danger">*</span></label>
+                            <input 
+                                type="text" 
+                                id="storage_area_name" 
+                                name="storage_area_name" 
+                                class="form-control form-control-lg border-0 shadow-sm rounded-3" 
+                                placeholder="e.g. Darfield Base Shed, Main Warehouse"
+                                maxlength="50"
+                                required
+                                style="background: #f9fafb;"
+                            >
+                            <div class="form-text text-muted mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Choose a descriptive name for this storage location (max 50 characters).
+                            </div>
+                            <div class="invalid-feedback d-block" style="display: none;">
+                                Please provide a storage area name.
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-lg btn-forest rounded-pill px-5 fw-bold">
+                                <i class="bi bi-check-circle me-2"></i>Create Storage Area
+                            </button>
+                            <a href="{{ url_for('admin.view_storage_areas') }}" class="btn btn-lg btn-outline-secondary rounded-pill px-5 fw-bold">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h3 class="h5 fw-bold mb-4">
+                        <i class="bi bi-lightbulb me-2 text-forest"></i>Best Practices
+                    </h3>
+                    
+                    <div class="mb-4 p-3 bg-light rounded-3 border-start border-4 border-forest">
+                        <h6 class="fw-bold text-forest mb-2">✓ Clear Names</h6>
+                        <p class="small text-muted mb-0">Use descriptive names that clearly indicate the storage location, e.g., "Darfield Base Shed", "West Melton Lockbox".</p>
+                    </div>
+
+                    <div class="mb-4 p-3 bg-light rounded-3 border-start border-4 border-forest">
+                        <h6 class="fw-bold text-forest mb-2">✓ Logical Organization</h6>
+                        <p class="small text-muted mb-0">Organize storage areas by physical location (sheds, lockboxes) to make inventory management easier.</p>
+                    </div>
+
+                    <div class="mb-4 p-3 bg-light rounded-3 border-start border-4 border-forest">
+                        <h6 class="fw-bold text-forest mb-2">✓ Consistent Naming</h6>
+                        <p class="small text-muted mb-0">Keep naming conventions consistent across your group for easy searching and filtering.</p>
+                    </div>
+
+                    <div class="p-3 bg-light rounded-3 border-start border-4 border-forest">
+                        <h6 class="fw-bold text-forest mb-2">✓ Unique Names</h6>
+                        <p class="small text-muted mb-0">Each storage area name should be unique within your group to avoid confusion.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const nameInput = document.getElementById('storage_area_name');
+        if (!nameInput.value.trim()) {
+            e.preventDefault();
+            nameInput.classList.add('is-invalid');
+            nameInput.nextElementSibling.nextElementSibling.style.display = 'block';
+        } else {
+            nameInput.classList.remove('is-invalid');
+        }
+    });
+</script>
+
+<style>
+.btn-forest { background-color: #1a5e20; color: white; }
+    .btn-forest:hover { background-color: #144d1a; color: white; }
+    .btn-outline-secondary:hover { background-color: #6c757d; color: white; }
+    .border-forest { border-color: #1a5e20 !important; }
+</style>
+{% endblock %}

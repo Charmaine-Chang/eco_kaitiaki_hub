@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% set active_page = 'bait_records' %}
+
+{% block title %}Record Bait Station Check{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('operator.view_bait_records') }}" class="text-decoration-none text-muted">Bait Records</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">New Record</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-box-seam fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">Record Bait Station Check</h1>
+                <p class="text-muted mb-0 small">{% if station %}Station <strong class="text-forest">#{{ station.bait_station_code }}</strong>{% elif line %}Line <strong class="text-forest">{{ line.line_name }}</strong>{% endif %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{% if line_id %}{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_lines', line_id=line_id) }}{% else %}{{ url_for('operator.view_lines', line_id=line_id) }}{% endif %}{% else %}{{ url_for('operator.view_bait_records') }}{% endif %}" class="btn btn-outline-forest rounded-pill px-4 fw-bold btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4 p-md-5">
+                {% if station %}
+                <form method="POST" class="row g-3">
+                    <!-- Date & Station -->
+                    <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-clock" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Date &amp; Station</h5>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Station ID</label>
+                        <input type="text" class="form-control border-0 shadow-sm rounded-3 bg-light" value="{{ station.bait_station_code }}" readonly name="bait_station_code" style="background: #f3f4f6 !important;">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Date &amp; Time <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="date" name="date" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Target Species <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="target_species_id" name="target_species_id" required>
+                            <option value="" selected disabled>Select target...</option>
+                            {% for s in species %}
+                            <option value="{{ s.species_id }}">{{ s.species_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12 my-3"><hr></div>
+
+                    <!-- Bait Specifications -->
+                    <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-droplet" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Bait Specifications</h5>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Type</label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="bait_type_id" name="bait_type_id">
+                            <option value="">None / Not specified</option>
+                            {% for b in baits %}
+                            <option value="{{ b.bait_type_id }}">{{ b.bait_type_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Active Ingredient <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="active_ingredient" name="active_ingredient" required>
+                            <option value="" selected disabled>Select ingredient...</option>
+                            {% for ing in ingredients %}
+                            <option value="{{ ing.ingredient_name }}">{{ ing.ingredient_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Formulation <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="formulation" name="formulation" required>
+                            <option value="" selected disabled>Select formulation...</option>
+                            {% for form in formulations %}
+                            <option value="{{ form.formulation_name }}">{{ form.formulation_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Concentration <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" step="0.0001" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="concentration" name="concentration" value="0" required min="0">
+                            <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">%</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Remaining <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="bait_remaining" name="bait_remaining" value="0" required min="0">
+                            <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">Kg</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Removed (Kg)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="bait_removed" name="bait_removed" value="0" min="0">
+                            <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">Kg</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Added (Kg)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="bait_added" name="bait_added" value="0" min="0">
+                            <span class="input-group-text bg-light text-muted fw-bold border-0 shadow-sm rounded-3 ms-1">Kg</span>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Observations &amp; Notes</label>
+                        <textarea class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="notes" name="notes" rows="3" placeholder="Record any observations about the station or bait..."></textarea>
+                    </div>
+
+                    <div class="col-12 mt-5 d-flex justify-content-between align-items-center pt-4 border-top">
+                        <div class="small text-muted">
+                            <i class="bi bi-person-circle me-1"></i> Logged as <strong>{{ session.get('username') }}</strong>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-forest rounded-pill px-5 fw-bold shadow-sm"><i class="bi bi-check2 me-1"></i> Save Record</button>
+                        </div>
+                    </div>
+                </form>
+
+                {% elif bait_stations %}
+                <div class="text-center mb-4">
+                    <p class="text-muted">Choose a bait station from line <strong>{{ line.line_name }}</strong> to record a check.</p>
+                </div>
+                <div class="row g-4">
+                    {% for bs in bait_stations %}
+                    <div class="col-sm-6 col-md-4">
+                        <a href="{{ url_for('operator.add_bait_record', bait_station_code=bs.bait_station_code) }}" class="card h-100 text-decoration-none border-0 shadow-sm rounded-4 overflow-hidden transition hover-up">
+                            <div class="card-body text-center py-5">
+                                <div class="mb-3 bg-forest-soft text-forest rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                    <i class="bi bi-box-seam fs-1"></i>
+                                </div>
+                                <h5 class="card-title text-dark fw-black mb-1">Station #{{ bs.bait_station_code }}</h5>
+                                <p class="card-text text-muted small text-uppercase fw-bold ls-1">{{ bs.bait_station_type_name }}</p>
+                                <span class="btn btn-sm btn-forest mt-3 rounded-pill px-4 fw-bold">Select Station</span>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-5 text-center">
+                    <a href="{{ url_for('operator.operator_dashboard') }}" class="btn btn-link text-secondary text-decoration-none fw-bold">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                    </a>
+                </div>
+
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-triangle display-1 text-warning opacity-50"></i>
+                    </div>
+                    <h4 class="fw-black">No active bait stations found</h4>
+                    <p class="text-muted mb-4">This line doesn't appear to have any functional bait stations assigned to it.</p>
+                    <a href="{{ url_for('operator.operator_dashboard') }}" class="btn btn-forest rounded-pill px-5 fw-bold">Back to Dashboard</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const localDatetime = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + 'T' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('date').value = localDatetime;
+    });
+</script>
+
+<style>
+.ls-1 { letter-spacing: 0.5px; }
+.fw-black { font-weight: 900; }
+.hover-up:hover { transform: translateY(-5px); box-shadow: 0 1rem 3rem rgba(0,0,0,0.125) !important; }
+.transition { transition: all 0.3s ease; }
+.btn-forest { background-color: #1a5e20; color: white; border: none; }
+.btn-forest:hover { background-color: #154d1a; color: white; }
+.btn-outline-forest { color: #1a5e20; border-color: #1a5e20; }
+.btn-outline-forest:hover { background-color: #1a5e20; color: white; }
+</style>
+{% endblock %}

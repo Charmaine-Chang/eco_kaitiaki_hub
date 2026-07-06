@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% set active_page = 'equipment_map' %}
+
+{% block title %}Equipment Map - {{ session.get('current_group_name', 'Group') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 fw-bold text-forest">Group Equipment Map</h2>
+        <div class="d-flex gap-2 align-items-center">
+            <select id="line_filter" class="form-select form-select-sm" style="width:180px;">
+                <option value="">All Lines</option>
+                {% for l in all_lines %}
+                    <option value="{{ l.line_id }}" {% if selected_line_id == l.line_id %}selected{% endif %}>{{ l.line_name }}</option>
+                {% endfor %}
+            </select>
+            <button id="applyFilter" class="btn btn-forest btn-sm">Filter</button>
+            <button id="locateBtn" class="btn btn-outline-forest btn-sm">
+                <i class="bi bi-crosshair me-1"></i> Locate Me
+            </button>
+        </div>
+    </div>
+
+    <!-- Map Card -->
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden" style="height: 600px; position: relative;">
+        <div id="leafletMap" style="height: 100%; width: 100%;"></div>
+        <div id="mapLoading" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-light" style="z-index:2;">
+            <div class="bg-forest-soft p-4 rounded-circle mb-3">
+                <i class="bi bi-map-fill text-forest display-4"></i>
+            </div>
+            <h4 class="fw-bold text-forest">Loading Map...</h4>
+            <div class="spinner-border text-forest mt-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+.btn-forest { background-color: #1a5e20; color: white; border: none; }
+    .btn-forest:hover { background-color: #154d1a; color: white; }
+    .btn-outline-forest { color: #1a5e20; border: 2px solid #1a5e20; background: transparent; }
+    .btn-outline-forest:hover { background-color: #1a5e20; color: white; }
+@keyframes pulse {
+        0% {transform: scale(0.9); opacity: 0.7;}
+        70% {transform: scale(1.2); opacity: 0;}
+        100% {transform: scale(0.9); opacity: 0;}
+    }
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+    .custom-marker-trap, .custom-marker-bait {
+        background: transparent !important;
+        border: none !important;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const map = L.map('leafletMap');
+        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Icons using inline SVG divIcon to avoid JPEG-extension MIME mismatches and broken image renders
+        const trapIcon = L.divIcon({
+            className: 'custom-marker-trap',
+            html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="45">
+                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#1a5e20" stroke="#ffffff" stroke-width="1.5"/>
+                   </svg>`,
+            iconSize: [30, 45],
+            iconAnchor: [15, 45],
+            popupAnchor: [0, -40]
+        });
+        const baitIcon = L.divIcon({
+            className: 'custom-marker-bait',
+            html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="45">
+                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#0066ff" stroke="#ffffff" stroke-width="1.5"/>
+                   </svg>`,
+            iconSize: [30, 45],
+            iconAnchor: [15, 45],
+            popupAnchor: [0, -40]
+        });
+
+        const data = {{ map_data|safe }};
+        const bounds = [];
+
+        data.forEach(eq => {
+            // Skip entries without valid coordinates to avoid JS errors
+            if (eq.lat == null || eq.lng == null) {
+                return;
+            }
+            const icon = eq.type === 'trap' ? trapIcon : baitIcon;
+            const marker = L.marker([eq.lat, eq.lng], {icon}).addTo(map);
+            const popup = `
+                <div class="fw-bold text-forest mb-1">#${eq.code}</div>
+                <div class="small text-muted">Type: ${eq.equipment_type}</div>
+                <div class="small text-muted">Status: ${eq.status || 'Unknown'}</div>
+                <div class="small text-muted">Last check: ${eq.last_check || 'Never'}</div>
+            `;
+            marker.bindPopup(popup, {minWidth: 200, maxWidth: 260});
+            bounds.push([eq.lat, eq.lng]);
+        });
+
+        // Draw boundary if defined for the group
+        let hasBoundaryBounds = false;
+        let boundaryLayer = null;
+        {% if current_group_boundary_geojson %}
+        try {
+            const boundaryGeo = {{ current_group_boundary_geojson | safe }};
+            if (boundaryGeo && (boundaryGeo.type === 'Polygon' || boundaryGeo.type === 'MultiPolygon')) {
+                boundaryLayer = L.geoJSON(boundaryGeo, {
+                    style: {
+                        color: '#3E6A44',
+                        fillColor: '#3E6A44',
+                        fillOpacity: 0.12,
+                        weight: 3,
+                        dashArray: '5, 5'
+                    }
+                }).addTo(map);
+                hasBoundaryBounds = true;
+            }
+        } catch (e) {
+            console.error("Error drawing boundary polygon:", e);
+        }
+        {% endif %}
+
+        // Center on centroid if provided, else fit bounds or NZ default
+        const centerLat = {{ center_lat if center_lat is not none else 'null' }};
+        const centerLng = {{ center_lng if center_lng is not none else 'null' }};
+        if (hasBoundaryBounds && boundaryLayer) {
+            map.fitBounds(boundaryLayer.getBounds(), {padding: [30, 30]});
+        } else if (centerLat !== null && centerLng !== null) {
+            map.setView([centerLat, centerLng], 10);
+        } else if (bounds.length) {
+            map.fitBounds(bounds, {padding: [50, 50]});
+        } else {
+            map.setView([-41.2865, 174.7762], 6);
+        }
+
+        // Close any open popup when clicking on the map background
+        map.on('click', () => {
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker && layer.getPopup()) {
+                    layer.closePopup();
+                }
+            });
+        });
+        document.getElementById('mapLoading').classList.add('d-none');
+
+        // Real-time GPS tracking
+        let userMarker = null;
+        let watchId = null;
+
+        function startLocationTracking() {
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser.');
+                return;
+            }
+            watchId = navigator.geolocation.watchPosition(pos => {
+                const latlng = [pos.coords.latitude, pos.coords.longitude];
+                if (userMarker) {
+                    userMarker.setLatLng(latlng);
+                } else {
+                    userMarker = L.circleMarker(latlng, {
+                        radius: 8,
+                        color: '#0066ff',
+                        fillColor: '#0066ff',
+                        fillOpacity: 0.8,
+                        className: 'pulse'
+                    }).addTo(map).bindTooltip('You are here', {permanent: true, direction: 'right'});
+                    map.setView(latlng, map.getZoom() || 15);
+                }
+            }, err => {
+                console.warn('GPS error:', err.message);
+                alert('Unable to get your location. Please ensure location access is enabled.');
+            }, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 5000
+            });
+            document.getElementById('locateBtn').disabled = true;
+            document.getElementById('locateBtn').innerHTML = '<i class="bi bi-crosshair me-1"></i> Tracking...';
+        }
+        document.getElementById('locateBtn').addEventListener('click', startLocationTracking);
+
+        // Filter button
+        document.getElementById('applyFilter').addEventListener('click', () => {
+            const lineId = document.getElementById('line_filter').value;
+            const url = new URL(window.location);
+            if (lineId) url.searchParams.set('line_id', lineId);
+            else url.searchParams.delete('line_id');
+            window.location = url.toString();
+        });
+    });
+</script>
+{% endblock %}

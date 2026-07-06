@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Eco Kaitiaki Hub{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    
+    {% block extra_head %}{% endblock %}
+    <!-- Custom Group Branding -->
+    <style>
+        :root {
+            --bs-primary: {
+                    {
+                    current_group_color or '#1a5e20'
+                }
+            }
+
+            ;
+
+            --bs-success: {
+                    {
+                    current_group_color or '#198754'
+                }
+            }
+
+            ;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="content-wrapper">
+        <!-- Top Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-light border-bottom shadow-sm sticky-top">
+            <div class="container-fluid px-4">
+                <!-- Brand -->
+                <a class="navbar-brand d-flex align-items-center me-2" href="{{ url_for('main.home') }}">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="36"
+                        class="me-2">
+                    <span class="fw-bold text-forest">Eco Kaitiaki Hub</span>
+                </a>
+
+
+                <!-- Navbar Center/Right Items -->
+                <div class="d-flex align-items-center gap-2 order-lg-last">
+                    <!-- Mobile Toggler -->
+                    <button class="navbar-toggler border-0 shadow-none p-2" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false"
+                        aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
+                    {% if session.get('user_id') %}
+                    <!-- Combined User & Group Dropdown (Hamburger Style) -->
+                    <div class="dropdown" id="userGroupDropdown">
+                        <button class="btn p-0 border-0 shadow-sm rounded-circle transition-hover" type="button" id="userGroupMenu" data-bs-toggle="dropdown" aria-expanded="false" style="box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important;">
+                            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 1.15rem; border: 2px solid #fff;">
+                                {{ session.get('username', 'U')[0] | upper }}
+                            </div>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2 mt-2" aria-labelledby="userGroupMenu" style="border-radius: 14px; min-width: 260px; max-height: 80vh; overflow-y: auto; z-index: 1050;">
+                            <!-- User Header -->
+                            <li class="px-3 py-2">
+                                <div class="fw-bold text-dark">{{ session.get('username', 'User') }}</div>
+                                {% if session.get('role_id') %}
+                                <div class="text-muted small">
+                                    {% if session.get('role_id') == ROLE_SUPER_ADMIN %}Super Admin
+                                    {% elif session.get('role_id') == ROLE_COORDINATOR %}Coordinator
+                                    {% elif session.get('role_id') == ROLE_OPERATOR %}Operator
+                                    {% else %}Observer{% endif %}
+                                </div>
+                                {% endif %}
+                            </li>
+                            <li><hr class="dropdown-divider mx-3"></li>
+
+                            <!-- User Actions -->
+                            <li><a class="dropdown-item py-2 px-3 fw-medium d-flex align-items-center" href="{{ url_for('auth.profile') }}"><i class="bi bi-person me-3 text-muted fs-5"></i>Profile</a></li>
+                            <li><a class="dropdown-item py-2 px-3 fw-medium d-flex align-items-center" href="{{ url_for('auth.my_groups') }}"><i class="bi bi-collection me-3 text-muted fs-5"></i>My Groups</a></li>
+                            
+                            <!-- Group Switcher Section -->
+                            {% if user_groups %}
+                            <li><hr class="dropdown-divider mx-3"></li>
+                            <li class="px-3 pb-1 pt-1">
+                                <span class="text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;">
+                                    Switch Group
+                                </span>
+                            </li>
+                            {% for grp in user_groups %}
+                            {% set is_active = session.get('current_group_id') and (grp.group_id | string) == (session.get('current_group_id') | string) %}
+                            <li>
+                                <!-- Hidden POST form for secure group entry -->
+                                <form method="POST" action="{{ url_for('groups.enter_group', group_id=grp.group_id) }}" id="enterGroupForm_{{ grp.group_id }}" class="d-none"></form>
+                                <button type="button" onclick="document.getElementById('enterGroupForm_{{ grp.group_id }}').submit()" class="dropdown-item d-flex align-items-center gap-2 py-2 px-3 mx-1 border-0 bg-transparent rounded-3" style="{% if is_active %}background:#f0fdf4 !important;{% endif %}width:calc(100% - 8px);">
+                                    <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:{% if is_active %}#1a5e20{% else %}#cbd5e1{% endif %};"></span>
+                                    <div class="flex-grow-1 text-start text-wrap lh-sm">
+                                        <div class="fw-semibold" style="font-size:.85rem;color:{% if is_active %}#1a5e20{% else %}#1e293b{% endif %};">
+                                            {{ grp.group_name }}
+                                        </div>
+                                        <div style="font-size:.7rem;color:#94a3b8;">
+                                            {% if grp.role_id == ROLE_SUPER_ADMIN %}⭐ Super Admin
+                                            {% elif grp.role_id == ROLE_COORDINATOR %}🛡 Coordinator
+                                            {% elif grp.role_id == ROLE_OPERATOR %}⚙️ Operator
+                                            {% else %}👁 Observer{% endif %}
+                                        </div>
+                                    </div>
+                                    {% if is_active %}
+                                    <i class="bi bi-check2 fw-bold" style="color:#1a5e20;font-size:1rem;"></i>
+                                    {% endif %}
+                                </button>
+                            </li>
+                            {% endfor %}
+                            {% if session.get('current_group_id') %}
+                            <li>
+                                <a href="{{ url_for('main.exit_group') }}" class="dropdown-item d-flex align-items-center py-2 px-3 text-secondary mx-1 rounded-3 mt-1" style="font-size:.85rem;width:calc(100% - 8px);">
+                                    <i class="bi bi-box-arrow-left me-2"></i>Exit Group Context
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% endif %}
+
+                            <li><hr class="dropdown-divider mx-3"></li>
+                            <li><a class="dropdown-item py-2 px-3 text-danger fw-medium d-flex align-items-center" href="{{ url_for('auth.logout') }}"><i class="bi bi-power me-3 fs-5"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                    {% else %}
+                        {% if request.endpoint == 'auth.login' %}
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-success rounded-pill px-4 shadow-sm fw-bold">Register</a>
+                        {% else %}
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">Login</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Main Navigation Links (Desktop) -->
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+                        <!-- Get Involved Dropdown -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle px-2 px-lg-3 mx-lg-1" href="#" id="getInvolvedDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                Get Involved
+                            </a>
+                            <ul class="dropdown-menu nav-dropdown-menu shadow-sm" aria-labelledby="getInvolvedDropdown">
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('main.find_group') }}">Find a Group</a></li>
+                            </ul>
+                        </li>
+
+                        {% if session.get('user_id') and session.get('role_id') %}
+                        <!-- Dashboard Link -->
+                        <li class="nav-item">
+                            <a class="nav-link px-2 px-lg-3 mx-lg-1 {{ 'active fw-bold text-forest' if active_page == 'dashboard' else '' }}"
+                                href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}">
+                                Dashboard
+                            </a>
+                        </li>
+
+                        <!-- Operations Dropdown -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle px-2 px-lg-3 mx-lg-1 {{ 'active fw-bold text-forest' if active_page in ['trap_lines', 'catch_records', 'bait_records'] else '' }}"
+                                href="#" id="opsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Operations
+                            </a>
+                            <ul class="dropdown-menu nav-dropdown-menu shadow-sm" aria-labelledby="opsDropdown">
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_lines') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.view_lines') }}{% else %}{{ url_for('observer.view_lines') }}{% endif %}">
+                                        Infrastructure Lines
+                                    </a></li>
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_catches') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.view_catches') }}{% else %}{{ url_for('observer.view_catches') }}{% endif %}">
+                                        Catch Records
+                                    </a></li>
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('operator.view_bait_records') }}">
+                                        Bait Records
+                                    </a></li>
+                                {% if session.get('role_id') == ROLE_OPERATOR %}
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('operator.incidental_observation_menu') }}">
+                                        Observations
+                                    </a></li>
+                                {% endif %}
+                                {% if session.get('role_id') in [ROLE_OPERATOR, ROLE_COORDINATOR, ROLE_SUPER_ADMIN] %}
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('operator.equipment_map') }}">
+                                        Equipment Map
+                                    </a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+
+                        <!-- Assets & Resources Dropdown -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle px-2 px-lg-3 mx-lg-1 {{ 'active fw-bold text-forest' if active_page in ['inventory', 'stock_inventory', 'retired_assets', 'knowledge'] else '' }}"
+                                href="#" id="assetsDropdown" role="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                Resources
+                            </a>
+                            <ul class="dropdown-menu nav-dropdown-menu shadow-sm" aria-labelledby="assetsDropdown">
+                                <li><a class="dropdown-item nav-dropdown-item {{ 'active' if active_page == 'knowledge' else '' }}"
+                                        href="{{ url_for('main.knowledge_hub') }}">
+                                        Knowledge Hub
+                                    </a></li>
+                                {% if session.get('current_group_id') %}
+                                <li><a class="dropdown-item nav-dropdown-item {{ 'active' if active_page == 'group_updates' else '' }}"
+                                        href="{{ url_for('updates.updates_list', group_id=session.get('current_group_id')) }}">
+                                        Group Updates
+                                    </a></li>
+                                {% endif %}
+                                <li>
+                                    <hr class="dropdown-divider mx-3">
+                                </li>
+                                {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR] %}
+                                <li><a class="dropdown-item nav-dropdown-item {{ 'active' if active_page == 'inventory' else '' }}"
+                                        href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_inventory') }}{% else %}{{ url_for('operator.view_inventory') }}{% endif %}">
+                                        Equipment Inventory
+                                    </a></li>
+                                <li><a class="dropdown-item nav-dropdown-item {{ 'active' if active_page == 'stock_inventory' else '' }}"
+                                        href="{{ url_for('inventory.stock_list') }}">
+                                        Consumable Stock
+                                    </a></li>
+                                {% endif %}
+                                {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                                <li><a class="dropdown-item nav-dropdown-item {{ 'active' if active_page == 'retired_assets' else '' }}"
+                                        href="{{ url_for('admin.retired_assets') }}">
+                                        Retired Assets
+                                    </a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+
+                        <!-- Insights Dropdown -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle px-2 px-lg-3 mx-lg-1 {{ 'active fw-bold text-forest' if active_page in ['data_graphs', 'export'] else '' }}"
+                                href="#" id="insightsDropdown" role="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                Insights
+                            </a>
+                            <ul class="dropdown-menu nav-dropdown-menu shadow-sm" aria-labelledby="insightsDropdown">
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.data_graphs') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.data_graphs') }}{% else %}{{ url_for('observer.data_graphs') }}{% endif %}">
+                                        Data Graphs Analytics
+                                    </a></li>
+                                {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR] %}
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('admin.export_data') }}">
+                                        Export Data
+                                    </a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+
+                        <!-- Management Dropdown (Admin/Coord Only) -->
+                        {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle px-2 px-lg-3 mx-lg-1 {{ 'active fw-bold text-forest' if active_page in ['users', 'group_settings', 'manage_groups', 'create_group', 'global_users', 'global_metadata'] else '' }}"
+                                href="#" id="mgmtDropdown" role="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                Admin
+                            </a>
+                            <ul class="dropdown-menu nav-dropdown-menu shadow-sm" aria-labelledby="mgmtDropdown">
+                                <li class="dropdown-header small text-uppercase fw-bold opacity-50">Group</li>
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('admin.admin_users') }}">
+                                        User Management
+                                    </a></li>
+                                {% if session.get('current_group_id') %}
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('admin.group_settings') }}">
+                                        Group Settings
+                                    </a></li>
+                                {% endif %}
+
+                                {% if session.get('is_super_admin') %}
+                                <li>
+                                    <hr class="dropdown-divider mx-3">
+                                </li>
+                                <li class="dropdown-header small text-uppercase fw-bold opacity-50">System</li>
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('admin.manage_groups') }}">
+                                        Group Directory
+                                    </a></li>
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('admin.create_group') }}">
+                                        Create New Group
+                                    </a></li>
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('admin.global_users') }}">
+                                        Global Users
+                                    </a></li>
+                                <li><a class="dropdown-item nav-dropdown-item"
+                                        href="{{ url_for('admin.global_metadata') }}">
+                                        Global Metadata
+                                    </a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        {% endif %}
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="container-fluid p-4">
+            <!-- Flash messages (Global) -->
+            {% if request.endpoint != 'auth.login' %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div aria-live="polite" aria-atomic="true">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm mb-4"
+                    role="alert">
+                    <i class="bi bi-info-circle me-2"></i>{{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-auto bg-dark text-white">
+            <div class="container py-5">
+                <div class="row g-4 mb-4">
+                    <div class="col-6 col-md-3">
+                        <h6 class="text-white fw-bold text-uppercase mb-3"
+                            style="font-size:0.78rem;letter-spacing:1.5px;font-family:Helvetica, Arial, sans-serif;">Get
+                            Involved</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><a href="{{ url_for('main.home') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Find a group</a></li>
+                            <li class="mb-2"><a href="{{ url_for('main.knowledge_hub') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Knowledge Hub</a></li>
+                            {% if session.get('user_id') %}<li class="mb-2"><a href="{{ url_for('auth.apply_group') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Apply for a Group</a></li>{% endif %}
+                        </ul>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <h6 class="text-white fw-bold text-uppercase mb-3"
+                            style="font-size:0.78rem;letter-spacing:1.5px;font-family:Helvetica, Arial, sans-serif;">
+                            Toolkits</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><a href="{{ url_for('main.knowledge_hub') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Trapping guides</a></li>
+                            <li class="mb-2"><a href="{{ url_for('main.knowledge_hub') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Bait station tips</a></li>
+                            <li class="mb-2"><a href="{{ url_for('main.knowledge_hub') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Field resources</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <h6 class="text-white fw-bold text-uppercase mb-3"
+                            style="font-size:0.78rem;letter-spacing:1.5px;font-family:Helvetica, Arial, sans-serif;">
+                            About Us</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><a href="{{ url_for('main.home') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Our mission</a></li>
+                            <li class="mb-2"><a href="{{ url_for('main.knowledge_hub') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Conservation stories</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <h6 class="text-white fw-bold text-uppercase mb-3"
+                            style="font-size:0.78rem;letter-spacing:1.5px;font-family:Helvetica, Arial, sans-serif;">
+                            Account</h6>
+                        <ul class="list-unstyled mb-0">
+                            {% if session.get('user_id') %}
+                            <li class="mb-2"><a href="{{ url_for('auth.profile') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">My Profile</a></li>
+                            <li class="mb-2"><a href="{{ url_for('auth.my_groups') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">My Groups</a></li>
+                            <li class="mb-2"><a href="{{ url_for('auth.logout') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Logout</a></li>
+                            {% else %}
+                            <li class="mb-2"><a href="{{ url_for('auth.login') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Login</a></li>
+                            <li class="mb-2"><a href="{{ url_for('auth.register') }}"
+                                    class="text-secondary text-decoration-none footer-link"
+                                    style="font-size:0.87rem;">Register</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                <hr style="border-color:rgba(255,255,255,0.1);">
+                <div class="row align-items-center pt-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <div class="fw-bold text-white mb-1" style="font-family:Helvetica, Arial, sans-serif;">Eco
+                            Kaitiaki Hub</div>
+                        <p class="text-secondary mb-0" style="font-size:0.82rem;">Supporting environmental conservation
+                            and community action across Aotearoa.</p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <p class="text-secondary mb-1" style="font-size:0.82rem;">&copy; 2026 Mokomoko Team. All rights
+                            reserved.</p>
+                        <div class="d-flex gap-3 justify-content-md-end">
+                            <a href="#" class="text-secondary text-decoration-none footer-link"
+                                style="font-size:0.82rem;">Privacy</a>
+                            <a href="#" class="text-secondary text-decoration-none footer-link"
+                                style="font-size:0.82rem;">Terms</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- App Form Handler JS -->
+    <script src="{{ url_for('static', filename='js/form-handler.js') }}"></script>
+
+    {% block extra_scripts %}{% endblock %}
+
+    {% if session.get('user_id') %}
+    <script>
+        // ── Auto-logout when browser/tab is closed and reopened ──────────────
+        // sessionStorage is cleared when the tab or browser closes.
+        // If we arrive here without our flag, the browser restored a stale session cookie.
+        (function () {
+            const FLAG = 'pf_tab_active';
+            if (!sessionStorage.getItem(FLAG)) {
+                // No flag → this is a fresh browser/tab open with a restored cookie.
+                // Synchronously log out before the page renders.
+                sessionStorage.removeItem(FLAG);
+                // Navigate to logout (replaces history entry so Back won't re-trigger this)
+                window.location.replace("{{ url_for('auth.logout') }}");
+            } else {
+                // Flag already set → normal navigation within the same session, keep it alive.
+                sessionStorage.setItem(FLAG, '1');
+            }
+        })();
+    </script>
+    {% endif %}
+</body>
+
+</html>

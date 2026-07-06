@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+{% set active_page = 'catch_records' %}
+
+{% block title %}Record Trap Catch{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_catches') }}{% else %}{{ url_for('operator.view_catches') }}{% endif %}" class="text-decoration-none text-muted">Catch Records</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">New Record</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-journal-plus fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">Record Trap Catch</h1>
+                <p class="text-muted mb-0 small">{% if trap %}Trap <strong class="text-forest">#{{ trap.trap_code }}</strong>{% elif line %}Line <strong class="text-forest">{{ line.line_name }}</strong>{% endif %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{% if line_id %}{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_lines', line_id=line_id) }}{% else %}{{ url_for('operator.view_lines', line_id=line_id) }}{% endif %}{% else %}{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_catches') }}{% else %}{{ url_for('operator.view_catches') }}{% endif %}{% endif %}" class="btn btn-outline-forest rounded-pill px-4 fw-bold btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4 p-md-5">
+                {% if trap %}
+                <form method="POST" class="row g-3">
+                    <!-- Date & Trap -->
+                    <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-clock" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Date &amp; Trap</h5>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Date &amp; Time of Check <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="date" name="date" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Trap Code</label>
+                        <input type="text" class="form-control border-0 shadow-sm rounded-3 bg-light" value="{{ trap.trap_code }}" readonly style="background: #f3f4f6 !important;">
+                    </div>
+
+                    <div class="col-12 my-3"><hr></div>
+
+                    <!-- Catch Information -->
+                    <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-bug" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Catch Information</h5>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Species Caught <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="species_id" name="species_id" required>
+                            <option value="" selected disabled>Select species...</option>
+                            {% for s in species %}
+                            <option value="{{ s.species_id }}">{{ s.species_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Sex <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="sex" name="sex" required>
+                            <option value="" selected disabled>Select sex...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Maturity <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="maturity" name="maturity" required>
+                            <option value="" selected disabled>Select maturity...</option>
+                            <option value="Juvenile">Juvenile</option>
+                            <option value="Adult">Adult</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Trap Status <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="trap_status_id" name="trap_status_id" required>
+                            <option value="" selected disabled>Select status...</option>
+                            {% for st in statuses %}
+                            <option value="{{ st.trap_status_id }}">{{ st.status_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12 my-3"><hr></div>
+
+                    <!-- Trap & Bait -->
+                    <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                        <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                            <i class="bi bi-tools" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Trap &amp; Bait Status</h5>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Trap Condition <span class="text-danger">*</span></label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="trap_condition_id" name="trap_condition_id" required>
+                            <option value="" selected disabled>Select condition...</option>
+                            {% for cond in conditions %}
+                            <option value="{{ cond.trap_condition_id }}">{{ cond.trap_condition_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Number of Strikes</label>
+                        <input type="number" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="strikes" name="strikes" min="0" value="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">&nbsp;</label>
+                        <div class="form-check pt-2">
+                            <input class="form-check-input border-0 shadow-sm" type="checkbox" id="rebaited" name="rebaited" value="true">
+                            <label class="form-check-label small fw-bold" for="rebaited">Trap was Rebaited</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Used</label>
+                        <select class="form-select border-0 shadow-sm rounded-3 bg-input-soft" id="bait_type_id" name="bait_type_id">
+                            <option value="">None / Not specified</option>
+                            {% for b in baits %}
+                            <option value="{{ b.bait_type_id }}">{{ b.bait_type_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2" id="bait_amount_group" style="display: none;">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Amount Used <span class="text-danger">*</span></label>
+                        <div class="input-group shadow-sm rounded-3 overflow-hidden border-0">
+                            <input type="number" class="form-control border-0" id="bait_amount" name="bait_amount"
+                                   min="0.01" step="0.01" placeholder="e.g. 0.5" style="background: #f9fafb;">
+                            <span class="input-group-text border-0 bg-light text-muted small fw-bold" style="background: #f0f1f3 !important;">unit</span>
+                        </div>
+                        <div class="form-text text-muted" style="font-size: 0.72rem;">Quantity deducted from inventory</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Additional Notes</label>
+                        <textarea class="form-control border-0 shadow-sm rounded-3 bg-input-soft" id="note" name="note" rows="3" placeholder="Enter any additional observations..."></textarea>
+                    </div>
+
+                    <div class="col-12 mt-5 d-flex justify-content-between align-items-center pt-4 border-top">
+                        <div class="small text-muted">
+                            <i class="bi bi-person-circle me-1"></i> Logged as <strong>{{ session.get('username') }}</strong>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-forest rounded-pill px-5 fw-bold shadow-sm"><i class="bi bi-check2 me-1"></i> Save Record</button>
+                        </div>
+                    </div>
+                </form>
+
+                {% elif traps %}
+                <div class="text-center mb-4">
+                    <p class="text-muted">Choose a trap from line <strong>{{ line.line_name }}</strong> to record a catch.</p>
+                </div>
+                <div class="row g-4">
+                    {% for t in traps %}
+                    <div class="col-sm-6 col-md-4">
+                        <a href="{{ url_for('operator.add_catch', trap_code=t.trap_code) }}" class="card h-100 text-decoration-none border-0 shadow-sm rounded-4 overflow-hidden transition hover-up">
+                            <div class="card-body text-center py-5">
+                                <div class="mb-3 bg-forest-soft text-forest rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                    <i class="bi bi-crosshair fs-1"></i>
+                                </div>
+                                <h5 class="card-title text-dark fw-black mb-1">Trap #{{ t.trap_code }}</h5>
+                                <p class="card-text text-muted small text-uppercase fw-bold ls-1">{{ t.trap_type_name }}</p>
+                                <span class="btn btn-sm btn-forest mt-3 rounded-pill px-4 fw-bold">Select Trap</span>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-5 text-center">
+                    <a href="{{ url_for('operator.operator_dashboard') }}" class="btn btn-link text-secondary text-decoration-none fw-bold">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                    </a>
+                </div>
+
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-triangle display-1 text-warning opacity-50"></i>
+                    </div>
+                    <h4 class="fw-black">No active traps found</h4>
+                    <p class="text-muted mb-4">This line doesn't appear to have any functional traps assigned to it.</p>
+                    <a href="{{ url_for('operator.operator_dashboard') }}" class="btn btn-forest rounded-pill px-5 fw-bold">Back to Dashboard</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const localDatetime = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + 'T' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('date').value = localDatetime;
+
+        // Bait amount toggle
+        const baitSelect = document.getElementById('bait_type_id');
+        const baitAmountGroup = document.getElementById('bait_amount_group');
+        const baitAmountInput = document.getElementById('bait_amount');
+
+        function toggleBaitAmount() {
+            const selected = baitSelect.value;
+            if (selected) {
+                baitAmountGroup.style.display = '';
+                baitAmountInput.required = true;
+            } else {
+                baitAmountGroup.style.display = 'none';
+                baitAmountInput.required = false;
+                baitAmountInput.value = '';
+            }
+        }
+
+        baitSelect.addEventListener('change', toggleBaitAmount);
+        toggleBaitAmount(); // run on page load
+    });
+</script>
+
+
+<style>
+.ls-1 { letter-spacing: 0.5px; }
+.fw-black { font-weight: 900; }
+.hover-up:hover { transform: translateY(-5px); box-shadow: 0 1rem 3rem rgba(0,0,0,0.125) !important; }
+.transition { transition: all 0.3s ease; }
+.btn-forest { background-color: #1a5e20; color: white; border: none; }
+.btn-forest:hover { background-color: #154d1a; color: white; }
+.btn-outline-forest { color: #1a5e20; border-color: #1a5e20; }
+.btn-outline-forest:hover { background-color: #1a5e20; color: white; }
+</style>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% set active_page = 'manage_groups' %}
+{% block title %}System Group Management{% endblock %}
+
+{% block content %}
+<!-- ── Breadcrumbs ────────────────────────────────────────── -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Group Directory</li>
+    </ol>
+</nav>
+
+<!-- ── Header ────────────────────────────────────────────── -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-3 bg-white rounded-4 shadow-sm border-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <div>
+                <h1 class="h3 fw-black text-forest mb-0">
+                    <i class="bi bi-building me-2"></i>Global Group Directory
+                </h1>
+                <p class="text-muted small mb-0 ls-1">Manage all conservation groups across the platform.</p>
+            </div>
+            <div class="d-flex gap-2">
+                {% if session.get('is_super_admin') %}
+                <a href="{{ url_for('admin.create_group') }}" class="btn btn-forest rounded-pill px-4 fw-bold shadow-sm btn-sm">
+                    <i class="bi bi-plus-lg me-2"></i>Create New Group
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light border-bottom">
+                            <tr>
+                                <th class="ps-4 py-3 small text-uppercase fw-bold text-muted ls-1">Group Name</th>
+                                <th class="py-3 small text-uppercase fw-bold text-muted ls-1">Coordinator</th>
+                                <th class="py-3 small text-uppercase fw-bold text-muted ls-1">Location</th>
+                                <th class="py-3 small text-uppercase fw-bold text-muted ls-1">Visibility</th>
+                                <th class="py-3 small text-uppercase fw-bold text-muted ls-1">Status</th>
+                                <th class="pe-4 text-end py-3 small text-uppercase fw-bold text-muted ls-1">Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group in groups %}
+                            <tr onclick="window.location='{{ url_for('admin.edit_group', group_id=group.group_id) }}'" style="cursor: pointer;">
+                                <td class="ps-4">
+                                    <div class="fw-bold text-forest">{{ group.group_name }}</div>
+                                    <div class="small text-muted line-clamp-1" style="max-width: 300px;">{{ group.description }}</div>
+                                </td>
+                                <td>
+                                    {% if group.coordinator_username %}
+                                        <span class="badge bg-light text-dark border">@{{ group.coordinator_username }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border border-dashed">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ group.geographic_area or '—' }}</td>
+                                <td>
+                                    {% if group.visibility == 'public' %}
+                                        <span class="badge rounded-pill bg-success-soft text-forest border border-success-subtle px-3">Public</span>
+                                    {% else %}
+                                        <span class="badge rounded-pill bg-secondary-soft text-secondary border border-secondary-subtle px-3">Private</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if group.status == 'active' %}
+                                        <span class="badge rounded-pill bg-success-soft text-success border border-success-subtle px-3">Active</span>
+                                    {% elif group.status == 'pending' %}
+                                        <span class="badge rounded-pill bg-warning-soft text-warning border border-warning-subtle px-3 text-dark">Pending</span>
+                                    {% elif group.status == 'rejected' %}
+                                        <span class="badge rounded-pill bg-danger-soft text-danger border border-danger-subtle px-3">Rejected</span>
+                                    {% else %}
+                                        <span class="badge rounded-pill bg-secondary-soft text-secondary border border-secondary-subtle px-3">{{ group.status|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="pe-4 text-end small text-muted">
+                                    {{ group.created_at.strftime('%Y-%m-%d') }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not groups %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">No groups found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.btn-forest { background-color: #1a5e20; color: white; }
+.btn-forest:hover { background-color: #144d1a; color: white; }
+</style>
+{% endblock %}

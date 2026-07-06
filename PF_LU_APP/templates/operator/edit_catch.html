@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% set active_page = 'catch_records' %}
+
+{% block title %}Edit Catch Record - #{{ catch.trap_code }}{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_catches') }}{% else %}{{ url_for('operator.view_catches') }}{% endif %}" class="text-decoration-none text-muted">Catch Records</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Edit Record</li>
+    </ol>
+</nav>
+
+<div class="row align-items-end mb-5 g-4">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 56px; height: 56px;">
+                <i class="bi bi-pencil-square fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 fw-black text-forest mb-1">Edit Catch Record</h1>
+                <p class="text-muted mb-0 small">Trap <strong class="text-forest">#{{ catch.trap_code }}</strong> on line <strong class="text-forest">{{ catch.line_name }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end">
+        <a href="{% if catch.line_id %}{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_lines', line_id=catch.line_id) }}{% else %}{{ url_for('operator.view_lines', line_id=catch.line_id) }}{% endif %}{% else %}{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_catches') }}{% else %}{{ url_for('operator.view_catches') }}{% endif %}{% endif %}" class="btn btn-outline-forest rounded-pill px-4 fw-bold btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4 p-md-5">
+                {% if is_retired %}
+                <div class="alert alert-warning border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center gap-3">
+                    <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 40px; height: 40px; min-width: 40px;">
+                        <i class="bi bi-archive-fill fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="alert-heading fw-bold mb-0">Archived - Read Only</h5>
+                        <p class="mb-0 small text-dark">This trap has been retired. The associated catch record is now archived as historical data and cannot be modified.</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="POST" class="row g-3">
+                    <fieldset {% if is_retired %}disabled{% endif %} class="row g-3 border-0 p-0 m-0">
+
+                        <!-- Date & Trap Info -->
+                        <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                <i class="bi bi-clock" style="font-size: 0.75rem;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Date &amp; Trap</h5>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Date &amp; Time of Check <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control border-0 shadow-sm rounded-3" name="date"
+                                   value="{{ catch.date.strftime('%Y-%m-%dT%H:%M') if catch.date else '' }}" required style="background: #f9fafb;">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Trap Code</label>
+                            <input type="text" class="form-control border-0 shadow-sm rounded-3 bg-light" value="{{ catch.trap_code }}" readonly style="background: #f3f4f6 !important;">
+                        </div>
+
+                        <div class="col-12 my-3"><hr></div>
+
+                        <!-- Catch Details -->
+                        <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                <i class="bi bi-bug" style="font-size: 0.75rem;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Catch Information</h5>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Species Caught <span class="text-danger">*</span></label>
+                            <select name="species_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                <option value="" disabled>-- Select Species --</option>
+                                {% for s in all_species %}
+                                <option value="{{ s.species_id }}" {% if catch.species_id == s.species_id %}selected{% endif %}>{{ s.species_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Sex <span class="text-danger">*</span></label>
+                            <select name="sex" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                <option value="" {% if not catch.sex or catch.sex == 'Unknown' %}selected{% endif %} disabled>-- Select Sex --</option>
+                                <option value="Male" {% if catch.sex == 'Male' %}selected{% endif %}>Male</option>
+                                <option value="Female" {% if catch.sex == 'Female' %}selected{% endif %}>Female</option>
+                                <option value="Unknown" {% if catch.sex == 'Unknown' %}selected{% endif %}>Unknown</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Maturity <span class="text-danger">*</span></label>
+                            <select name="maturity" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                <option value="" {% if not catch.maturity or catch.maturity == 'Unknown' %}selected{% endif %} disabled>-- Select Maturity --</option>
+                                <option value="Juvenile" {% if catch.maturity == 'Juvenile' %}selected{% endif %}>Juvenile</option>
+                                <option value="Adult" {% if catch.maturity == 'Adult' %}selected{% endif %}>Adult</option>
+                                <option value="Unknown" {% if catch.maturity == 'Unknown' %}selected{% endif %}>Unknown</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 my-3"><hr></div>
+
+                        <!-- Trap & Bait -->
+                        <div class="col-12 mb-2 d-flex align-items-center gap-2">
+                            <div class="bg-forest text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                <i class="bi bi-tools" style="font-size: 0.75rem;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-0 ls-1 text-uppercase small">Trap &amp; Bait Status</h5>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Trap Status <span class="text-danger">*</span></label>
+                            <select name="trap_status_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                <option value="" disabled>-- Select Status --</option>
+                                {% for ts in all_statuses %}
+                                <option value="{{ ts.trap_status_id }}" {% if catch.trap_status_id == ts.trap_status_id %}selected{% endif %}>{{ ts.status_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Overall Condition <span class="text-danger">*</span></label>
+                            <select name="trap_condition_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft" required>
+                                <option value="" disabled>-- Select Condition --</option>
+                                {% for tc in all_conditions %}
+                                <option value="{{ tc.trap_condition_id }}" {% if catch.trap_condition_id == tc.trap_condition_id %}selected{% endif %}>{{ tc.trap_condition_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">&nbsp;</label>
+                            <div class="form-check">
+                                <input class="form-check-input border-0 shadow-sm" type="checkbox" name="rebaited" id="rebaited" {% if catch.rebaited %}checked{% endif %}>
+                                <label class="form-check-label small fw-bold" for="rebaited">Trap Rebaited?</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Bait Used</label>
+                            <select name="bait_type_id" id="bait_type_id" class="form-select border-0 shadow-sm rounded-3 bg-input-soft">
+                                <option value="">-- No Bait --</option>
+                                {% for b in all_baits %}
+                                <option value="{{ b.bait_type_id }}" {% if catch.bait_type_id == b.bait_type_id %}selected{% endif %}>{{ b.bait_type_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3" id="bait_amount_group" style="display: none;">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Amount Used <span class="text-danger">*</span></label>
+                            <div class="input-group shadow-sm rounded-3 overflow-hidden border-0">
+                                <input type="number" class="form-control border-0" id="bait_amount" name="bait_amount"
+                                       min="0.01" step="0.01" placeholder="e.g. 0.5"
+                                       value="{{ catch.bait_amount if catch.bait_amount else '' }}"
+                                       style="background: #f9fafb;">
+                                <span class="input-group-text border-0 bg-light text-muted small fw-bold" style="background: #f0f1f3 !important;">unit</span>
+                            </div>
+                            <div class="form-text text-muted" style="font-size: 0.72rem;">Quantity deducted from inventory</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Number of Strikes</label>
+                            <input type="number" class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="strikes" value="{{ catch.strikes or 0 }}" min="0">
+                        </div>
+
+                        <div class="col-12 mt-3">
+                            <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Notes / Comments</label>
+                            <textarea class="form-control border-0 shadow-sm rounded-3 bg-input-soft" name="note" rows="3" placeholder="Additional details about the catch or trap condition...">{{ catch.note }}</textarea>
+                        </div>
+
+                        <div class="col-12 mt-5 d-flex justify-content-between align-items-center pt-4 border-top">
+                            <div class="small text-muted">
+                                {% if catch.updated_at %}
+                                <i class="bi bi-clock-history me-1"></i> Last modified: {{ catch.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                {% endif %}
+                            </div>
+                            <div class="d-flex gap-2">
+                                {% if is_retired %}
+                                <button type="button" class="btn btn-secondary rounded-pill px-5 fw-bold shadow-sm" disabled><i class="bi bi-lock me-1"></i> Archived</button>
+                                {% else %}
+                                <button type="submit" class="btn btn-forest rounded-pill px-5 fw-bold shadow-sm"><i class="bi bi-check2 me-1"></i> Save Changes</button>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const baitSelect = document.getElementById('bait_type_id');
+    const baitAmountGroup = document.getElementById('bait_amount_group');
+    const baitAmountInput = document.getElementById('bait_amount');
+
+    function toggleBaitAmount() {
+        const selected = baitSelect.value;
+        if (selected) {
+            baitAmountGroup.style.display = '';
+            baitAmountInput.required = true;
+        } else {
+            baitAmountGroup.style.display = 'none';
+            baitAmountInput.required = false;
+            baitAmountInput.value = '';
+        }
+    }
+
+    baitSelect.addEventListener('change', toggleBaitAmount);
+    toggleBaitAmount(); // show on load if bait already selected
+});
+</script>
+{% endblock %}

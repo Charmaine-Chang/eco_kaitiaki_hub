@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+{% set active_page = 'bait_records' %}
+
+{% block title %}Bait Station Records{% endblock %}
+
+{% block content %}
+<!-- ── Breadcrumbs ────────────────────────────────────────── -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">Bait History</li>
+    </ol>
+</nav>
+
+<!-- ── Header ────────────────────────────────────────────── -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-4 bg-white rounded shadow-sm border d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h1 class="h3 fw-black text-forest mb-0">Bait History</h1>
+                <p class="text-muted mb-0">{% if line %}Line: {{ line.line_name }}{% else %}All Assigned Lines{% endif %} — Tracking bait station checks and maintenance.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <div class="btn-group shadow-sm" role="group">
+                    <button type="button" class="btn btn-outline-forest active" id="viewTableBtn"><i class="bi bi-table me-2"></i>Table</button>
+                    <button type="button" class="btn btn-outline-forest" id="viewMapBtn"><i class="bi bi-map me-2"></i>Map View</button>
+                </div>
+                <a href="{{ url_for('operator.add_bait_record') }}" class="btn btn-forest shadow-sm">
+                    <i class="bi bi-plus-lg me-2"></i>New Record
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── KPI Summary + Species Mix ─────────────────────────── -->
+<div class="card border-0 shadow-sm rounded-4 mb-3 bg-white">
+    <div class="card-body p-3">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-2 border-end text-center">
+                <div class="text-muted fw-bold text-uppercase ls-1" style="font-size: 0.6rem;">Total Records</div>
+                <div class="fs-5 fw-black lh-1 mt-1">{{ stats.total_records }}</div>
+            </div>
+            <div class="col-md-2 border-end text-center">
+                <div class="text-muted fw-bold text-uppercase ls-1" style="font-size: 0.6rem;">Active Stations</div>
+                <div class="fs-5 fw-black lh-1 mt-1">{{ stats.active_stations }}</div>
+            </div>
+            <div class="col-md-2 border-end text-center">
+                <div class="text-muted fw-bold text-uppercase ls-1" style="font-size: 0.6rem;">Maint. Required</div>
+                <div class="fs-5 fw-black lh-1 text-danger mt-1">{{ stats.maintenance_required }}</div>
+            </div>
+            <div class="col-md-6 ps-3">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted fw-bold text-uppercase ls-1 flex-shrink-0" style="font-size: 0.6rem; width: 50px;">Species Mix</span>
+                    <div class="flex-grow-1" style="height: 60px;">
+                        <canvas id="speciesTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Filters Section (Compact) ──────────────────────────── -->
+<div class="card shadow-sm border-0 mb-3 rounded-4 overflow-hidden bg-light-subtle">
+    <div class="card-body p-3">
+        <form method="GET" id="filterForm" class="row g-2 align-items-center">
+            <div class="col-lg-7 d-flex gap-2 flex-wrap">
+                <select class="form-select form-select-sm border-0 shadow-sm" id="line_filter" name="line_filter" style="width: 160px; font-weight: 500;">
+                    <option value="">All Lines</option>
+                    {% for l in all_lines %}
+                    <option value="{{ l.line_id }}" {% if line_filter == l.line_id|string %}selected{% endif %}>{{ l.line_name }}</option>
+                    {% endfor %}
+                </select>
+                <select class="form-select form-select-sm border-0 shadow-sm" id="target_species_filter" name="target_species_filter" style="width: 150px; font-weight: 500;">
+                    <option value="">All Species</option>
+                    {% for s in all_target_species %}
+                    <option value="{{ s.species_id }}" {% if target_species_filter == s.species_id|string %}selected{% endif %}>{{ s.species_name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="input-group input-group-sm shadow-sm" style="width: 220px;">
+                    <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="globalBaitSearch" class="form-control border-0" placeholder="Search station or code...">
+                </div>
+            </div>
+            <div class="col-lg-5 d-flex gap-2 justify-content-lg-end flex-wrap">
+                <div class="input-group input-group-sm shadow-sm" style="width: 320px;">
+                    <span class="input-group-text bg-white border-0 text-muted fw-bold" style="font-size: 0.7rem;">FROM</span>
+                    <input type="date" class="form-control border-0 bg-white px-1 text-center" id="start_date" name="start_date" value="{{ start_date or '' }}">
+                    <span class="input-group-text bg-white border-0 text-muted fw-bold px-1" style="font-size: 0.7rem;">TO</span>
+                    <input type="date" class="form-control border-0 bg-white px-1 text-center" id="end_date" name="end_date" value="{{ end_date or '' }}">
+                </div>
+                <button type="submit" class="btn btn-sm btn-forest shadow-sm fw-bold px-3">Filter</button>
+                <a href="{{ url_for('operator.view_bait_records') }}" 
+                   class="btn btn-sm btn-light border shadow-sm px-2 text-muted" title="Clear Filters">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+            <div class="col-12 d-flex align-items-center justify-content-between mt-2 pt-2 border-top border-black border-opacity-10">
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="text-muted fw-bold text-uppercase ls-1" style="font-size: 0.65rem;">Presets:</span>
+                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill border-0 fw-semibold" onclick="setPreset('7')">7 Days</button>
+                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill border-0 fw-semibold" onclick="setPreset('30')">30 Days</button>
+                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill border-0 fw-semibold" onclick="setPreset('month')">This Month</button>
+                </div>
+                <div class="small text-muted" style="font-size: 0.8rem;">
+                    Showing <span class="fw-bold text-dark">{{ records|length }}</span> records
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Bait Records Table ────────────────────────────────── -->
+<div id="tableView" class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+    <div class="card-header bg-white py-2 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-forest small text-uppercase ls-1">Recorded Bait Checks</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+            <table class="table table-sm table-hover align-middle mb-0" id="baitTable" style="font-size: 0.85rem;">
+                <thead class="table-light sticky-top text-muted" style="z-index: 10; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <tr>
+                        <th class="ps-4">Date</th>
+                        <th>Station</th>
+                        <th>Target Species</th>
+                        <th>Bait Type</th>
+                        <th>Formulation</th>
+                        <th>Ingredient</th>
+                        <th>Remaining</th>
+                        <th>Added</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if records %}
+                        {% for r in records %}
+                        {% set is_station_retired = (r.station_overall_status == 'inactive' or r.station_equipment_status == 'Retired') %}
+                        <tr class="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR] %}clickable-row{% endif %} {% if is_station_retired %}table-light text-muted{% endif %}"
+                            data-href="{{ url_for('operator.edit_bait_record', record_id=r.record_id) }}"
+                            {% if session.get('role_id') == ROLE_OPERATOR and not (r.recorded_by == session.get('user_id') or session.get('is_super_admin')) %}onclick="alert('Permission Denied: You can only edit records you created yourself.')"{% endif %}>
+                            <td class="ps-4 small text-muted">
+                                {{ r.date.strftime('%Y-%m-%d %H:%M') if r.date else 'N/A' }}
+                                {% if r.updated_at and r.updated_at|string != r.date|string %}
+                                <i class="bi bi-pencil-fill ms-1 text-info opacity-75" title="Modified: {{ r.updated_at.strftime('%Y-%m-%d %H:%M') }}"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-bold text-forest">
+                                    #{{ r.bait_station_code }}
+                                    {% if is_station_retired %}
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle smaller ms-1" style="font-size: 0.65rem;" title="Bait station is retired">
+                                        <i class="bi bi-archive me-1"></i>Retired
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="small text-muted text-truncate" style="max-width: 100px;">{{ r.line_name }}</div>
+                            </td>
+                            <td>
+                                {% if r.target_species %}
+                                    <span class="badge rounded-pill px-3 smaller fw-bold text-uppercase" style="{{ species_badge_style(r.target_species) }}">{{ r.target_species }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary fw-bold rounded-pill px-3 smaller">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ r.bait_type_name or '—' }}</td>
+                            <td class="small">{{ r.formulation or '—' }}</td>
+                            <td class="small">{{ r.active_ingredient or '—' }}</td>
+                            <td><span class="badge bg-light text-dark border rounded-pill px-3">{{ r.bait_remaining }} kg</span></td>
+                            <td><span class="badge bg-forest-soft text-forest border border-forest-subtle rounded-pill px-3 fw-bold">{{ r.bait_added }} kg</span></td>
+                            <td class="text-end pe-4">
+                                {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR] %}
+                                    {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] or r.recorded_by == session.get('user_id') %}
+                                         {% if is_station_retired %}
+                                         <a href="{{ url_for('operator.edit_bait_record', record_id=r.record_id) }}" class="btn btn-sm btn-light border rounded-pill text-muted" title="Archived - Bait station is retired (Read Only)">
+                                             <i class="bi bi-archive-fill text-warning" style="font-size: 0.75rem;"></i>
+                                         </a>
+                                         {% else %}
+                                         <a href="{{ url_for('operator.edit_bait_record', record_id=r.record_id) }}" class="btn btn-sm btn-light border rounded-pill">
+                                             <i class="bi bi-chevron-right"></i>
+                                         </a>
+                                         {% endif %}
+                                    {% else %}
+                                    <span class="text-muted small" title="Only the recorder can edit this."><i class="bi bi-lock-fill"></i></span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted small"><i class="bi bi-lock-fill"></i></span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-3 opacity-25"></i>
+                                <h6 class="fw-semibold">No Bait Records Found</h6>
+                                <small>No matching data was found for the current filters.</small>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ── Map View ────────────────────────────────── -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<div id="mapView" class="d-none card shadow-sm border-0 rounded-4 overflow-hidden mb-4" style="height: 600px; position: relative;">
+    <div id="leafletMap" style="height: 100%; width: 100%; z-index: 1;"></div>
+    <div id="mapLoading" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-light" style="z-index: 2;">
+        <div class="bg-forest-soft p-5 rounded-circle mb-4">
+            <i class="bi bi-map-fill text-forest display-1"></i>
+        </div>
+        <h4 class="fw-bold text-forest">Loading Map...</h4>
+        <div class="spinner-border text-forest mt-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // ── Species Trend Chart ──
+    const speciesData = {{ species_distribution | safe }};
+    const ctx = document.getElementById('speciesTrendChart').getContext('2d');
+    const colors = {{ species_colors | tojson | safe }};
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: speciesData.map(d => d.species_name),
+            datasets: [{
+                data: speciesData.map(d => d.count),
+                backgroundColor: speciesData.map(d => (colors[d.species_name] || colors['None']).hex),
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { display: false },
+                x: { grid: { display: false }, ticks: { display: false } }
+            }
+        }
+    });
+
+    // ── Table Search ──
+    document.getElementById('globalBaitSearch').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#baitTable tbody tr.clickable-row');
+        rows.forEach(row => {
+            let text = row.innerText.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    });
+
+    // ── Row Click ──
+    document.querySelectorAll('.clickable-row').forEach(row => {
+        row.addEventListener('click', function() {
+            window.location = this.dataset.href;
+        });
+    });
+
+    // ── Map Initialization ──
+    let map = null;
+    let mapInitialized = false;
+    const mapDataRaw = {{ map_data | safe }};
+
+    function initMap() {
+        if (mapInitialized) return;
+
+        document.getElementById('mapLoading').classList.add('d-none');
+        map = L.map('leafletMap');
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const bounds = [];
+        const markers = L.layerGroup().addTo(map);
+
+        mapDataRaw.forEach(point => {
+            if (point.lat && point.lng) {
+                const marker = L.marker([point.lat, point.lng]);
+                const tgtColor = (colors[point.target_species] || colors['Unspecified']).hex;
+                marker.bindPopup(`
+                    <div class="fw-bold text-forest mb-1">Station #${point.bait_station_code}</div>
+                    <div class="small mb-1">Line: <span class="fw-semibold">${point.line_name}</span></div>
+                    <div class="small mb-1">Target: <span class="fw-bold" style="color:${tgtColor}">${point.target_species}</span></div>
+                    <div class="small mb-1">Bait Type: <span class="fw-semibold">${point.bait_type_name || '—'}</span></div>
+                    <div class="small mb-1">Formulation: <span class="fw-semibold">${point.formulation || '—'}</span></div>
+                    <div class="small text-muted"><i class="bi bi-clock me-1"></i>${point.date}</div>
+                `);
+                markers.addLayer(marker);
+                bounds.push([point.lat, point.lng]);
+            }
+        });
+
+        let hasBounds = false;
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            hasBounds = true;
+        } else {
+            map.setView([-41.2865, 174.7762], 6);
+        }
+
+        // Draw boundary if defined for the group
+        {% if current_group_boundary_geojson %}
+        try {
+            const boundaryGeo = {{ current_group_boundary_geojson | safe }};
+            if (boundaryGeo && boundaryGeo.type === 'Polygon') {
+                const boundaryLayer = L.geoJSON(boundaryGeo, {
+                    style: {
+                        color: '#3E6A44',
+                        fillColor: '#3E6A44',
+                        fillOpacity: 0.12,
+                        weight: 3,
+                        dashArray: '5, 5'
+                    }
+                }).addTo(map);
+                if (!hasBounds) {
+                    map.fitBounds(boundaryLayer.getBounds(), { padding: [50, 50] });
+                }
+            }
+        } catch (e) {
+            console.error("Error drawing boundary polygon", e);
+        }
+        {% endif %}
+
+        mapInitialized = true;
+    }
+
+    // ── View Toggle ──
+    const viewTableBtn = document.getElementById('viewTableBtn');
+    const viewMapBtn = document.getElementById('viewMapBtn');
+    const tableView = document.getElementById('tableView');
+    const mapView = document.getElementById('mapView');
+
+    viewTableBtn.addEventListener('click', () => {
+        tableView.classList.remove('d-none');
+        mapView.classList.add('d-none');
+        viewTableBtn.classList.add('active');
+        viewMapBtn.classList.remove('active');
+    });
+
+    viewMapBtn.addEventListener('click', () => {
+        tableView.classList.add('d-none');
+        mapView.classList.remove('d-none');
+        viewMapBtn.classList.add('active');
+        viewTableBtn.classList.remove('active');
+
+        initMap();
+        setTimeout(() => {
+            if (map) map.invalidateSize();
+        }, 100);
+    });
+});
+
+function setPreset(days) {
+    const end = new Date();
+    const start = new Date();
+    if (days === 'month') {
+        start.setDate(1);
+    } else {
+        start.setDate(end.getDate() - parseInt(days));
+    }
+    document.getElementById('start_date').value = start.toISOString().split('T')[0];
+    document.getElementById('end_date').value = end.toISOString().split('T')[0];
+    document.getElementById('filterForm').submit();
+}
+</script>
+
+<style>
+.btn-forest { background-color: #1a5e20; color: white; border: none; }
+.btn-forest:hover { background-color: #154d1a; color: white; }
+.btn-outline-forest { color: #1a5e20; border-color: #1a5e20; }
+.btn-outline-forest:hover, .btn-outline-forest.active { background-color: #1a5e20; color: white; }
+.border-forest-subtle { border-color: rgba(26, 94, 32, 0.2) !important; }
+.bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
+.bg-danger-soft { background-color: rgba(220, 53, 69, 0.1); }
+.bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
+.ls-1 { letter-spacing: 0.5px; }
+.fw-black { font-weight: 900; }
+.clickable-row { cursor: pointer; transition: background-color 0.1s; }
+smaller { font-size: 0.75rem; }
+.btn-xs { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+</style>
+{% endblock %}

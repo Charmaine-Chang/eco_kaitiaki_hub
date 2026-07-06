@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% set active_page = 'knowledge' %}
+{% block title %}Edit Knowledge Entry - Knowledge Hub{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb small text-uppercase ls-1">
+                <li class="breadcrumb-item"><a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.knowledge_hub') }}" class="text-decoration-none text-muted">Knowledge Hub</a></li>
+                <li class="breadcrumb-item active text-forest fw-bold">Edit Entry</li>
+            </ol>
+        </nav>
+
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="fw-bold mb-0 text-forest"><i class="bi bi-pencil me-2"></i>Edit Entry</h2>
+                    <a href="{{ url_for('knowledge.view_revisions', entry_id=entry.entry_id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold">
+                        <i class="bi bi-clock-history me-1"></i>View History
+                    </a>
+                </div>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="title" class="form-label small fw-bold text-uppercase text-secondary ls-1">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ entry.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label small fw-bold text-uppercase text-secondary ls-1">Category <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category" name="category" required>
+                            <option value="" disabled>Select a category</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat }}" {% if entry.category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                            <option value="__other__">Other (enter new)</option>
+                        </select>
+                        <input type="text" class="form-control mt-2" id="category_other" name="category_other" placeholder="Enter new category" style="display:none;">
+                    </div>
+                    <script>
+                        const categorySelect = document.getElementById('category');
+                        const categoryOther = document.getElementById('category_other');
+                        function toggleCategoryOther() {
+                            if (categorySelect.value === '__other__') {
+                                categoryOther.style.display = 'block';
+                                categoryOther.required = true;
+                            } else {
+                                categoryOther.style.display = 'none';
+                                categoryOther.required = false;
+                            }
+                        }
+                        categorySelect.addEventListener('change', toggleCategoryOther);
+                        window.addEventListener('DOMContentLoaded', toggleCategoryOther);
+                    </script>
+                    <div class="mb-3">
+                        <label for="content" class="form-label small fw-bold text-uppercase text-secondary ls-1">Content <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="content" name="content" rows="6" required>{{ entry.content }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="photo" class="form-label small fw-bold text-uppercase text-secondary ls-1">Image <span class="fw-normal text-muted text-lowercase">(Optional)</span></label>
+                        <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+                        <div class="form-text text-muted">Upload a new image to replace the current one.</div>
+                    </div>
+                    {% if entry.photo_url %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-secondary ls-1">Current Image</label>
+                        <img src="{{ entry.photo_url | photo_src }}" alt="Current entry image" class="img-fluid rounded-3 border" style="max-height: 260px; object-fit: cover;">
+                    </div>
+                    {% endif %}
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{{ url_for('main.knowledge_hub') }}" class="btn btn-outline-forest rounded-pill px-4 fw-bold">Cancel</a>
+                        <button type="submit" class="btn btn-forest rounded-pill px-4 fw-bold shadow-sm"><i class="bi bi-check2 me-1"></i> Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

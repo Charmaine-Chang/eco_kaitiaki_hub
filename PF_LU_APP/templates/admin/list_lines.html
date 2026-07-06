@@ -1,0 +1,792 @@
+{% extends 'base.html' %}
+{% set active_page = 'trap_lines' %}
+
+{% block title %}Lines Overview - Mokomoko Hub{% endblock %}
+
+{% block extra_head %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+    :root {
+        --primary-green: #1a5e20;
+        --soft-green: #f0fdf4;
+        --action-gold: #ffc107;
+    }
+    .custom-marker-green, .custom-marker-orange, .custom-marker-red, .custom-marker-blue {
+        background: transparent !important;
+        border: none !important;
+    }
+    .main-wrapper {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    .sidebar-card {
+        /* Let the card grow naturally; scrolling is handled inside */
+        display: flex;
+        flex-direction: column;
+    }
+    .sidebar-search-container {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: white;
+        padding-bottom: 1rem;
+    }
+    .line-list-container {
+        /* Fixed height so the list scrolls independently of the page */
+        max-height: 60vh;
+        min-height: 120px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--primary-green) #f8f9fa;
+        padding-right: 4px;
+    }
+    .line-list-container::-webkit-scrollbar {
+        width: 5px;
+    }
+    .line-list-container::-webkit-scrollbar-track {
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+    .line-list-container::-webkit-scrollbar-thumb {
+        background: var(--primary-green);
+        border-radius: 10px;
+    }
+    .line-card {
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 12px;
+        border-radius: 14px;
+        position: relative;
+    }
+    .line-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-color: var(--primary-green);
+    }
+    .line-card.active-selection {
+        background-color: white;
+        border-left: 4px solid var(--primary-green);
+        box-shadow: 0 10px 25px rgba(26, 94, 32, 0.12);
+        z-index: 2;
+    }
+    .status-pill {
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 20px;
+    }
+    #map {
+        height: 320px;
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        border: 1px solid rgba(0,0,0,0.1);
+        z-index: 1;
+    }
+    .search-wrapper { position: relative; }
+    .search-clear {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6c757d;
+        display: none;
+    }
+    .search-clear:hover { color: var(--primary-green); }
+    
+    /* Table Styling */
+    .equipment-table th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #6c757d;
+        padding: 1rem;
+    }
+    .equipment-table td {
+        padding: 1.25rem 1rem;
+        vertical-align: middle;
+    }
+    .mono-coord {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.85rem;
+        letter-spacing: -0.5px;
+    }
+    .record-btn {
+        background-color: var(--primary-green);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 10px rgba(26, 94, 32, 0.2);
+    }
+    .record-btn:hover {
+        background-color: #144718;
+        color: white;
+        transform: scale(1.05);
+    }
+    
+    /* KPI Cards */
+    /* Updated KPI Card Style */
+.kpi-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.kpi-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1a5e20; /* Primary green for icons */
+}
+
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-top: 0.5rem;
+}
+    .kpi-card:hover { transform: translateY(-5px); }
+    .kpi-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+    .ls-1 { letter-spacing: 0.5px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-wrapper">
+    <!-- ── Header & Breadcrumbs ────────────────────────── -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="p-4 bg-white rounded-4 shadow-sm border-0">
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb small text-uppercase ls-1 mb-0">
+                        <li class="breadcrumb-item">
+                            <a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.admin_dashboard') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.operator_dashboard') }}{% else %}{{ url_for('observer.observer_dashboard') }}{% endif %}" class="text-decoration-none text-muted">Dashboard</a>
+                        </li>
+                        <li class="breadcrumb-item active text-forest fw-bold">Infrastructure Hub</li>
+                    </ol>
+                </nav>
+
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div>
+                        <h1 class="h3 fw-black text-forest mb-1">Infrastructure Hub</h1>
+                        <p class="text-muted small mb-0 ls-1">High-density management of predator-free network nodes across the organisation.</p>
+                    </div>
+                    <div class="d-flex gap-2 flex-shrink-0">
+                        <a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_catches') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.view_catches') }}{% else %}{{ url_for('observer.view_catches') }}{% endif %}" class="btn btn-outline-secondary rounded-pill px-4 fw-bold">
+                            <i class="bi bi-clock-history me-2"></i>Catch History
+                        </a>
+                        {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                        <a href="{{ url_for('admin.create_new_lines') }}" class="btn btn-forest rounded-pill px-4 d-flex align-items-center fw-bold">
+                            <i class="bi bi-plus-lg me-2"></i>New Line
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- ── Sidebar: Master List ──────────────────────────── -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 sidebar-card overflow-hidden">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="sidebar-search-container">
+                        <h6 class="fw-bold text-uppercase small ls-1 text-forest mb-3">Master Line List</h6>
+                        <div class="search-wrapper mb-3">
+                            <input type="text" id="lineSearch" class="form-control border-0 bg-light rounded-3 py-2 ps-3" placeholder="Search infrastructure...">
+                            <i class="bi bi-x-circle-fill search-clear" id="clearSearch"></i>
+                        </div>
+                        
+                        <div class="btn-group w-100 mb-3" role="group">
+                            <input type="radio" class="btn-check" name="typeToggle" id="typeAll" checked>
+                            <label class="btn btn-outline-forest btn-sm border-0 bg-light text-dark" for="typeAll">All</label>
+                            <input type="radio" class="btn-check" name="typeToggle" id="typeTrap">
+                            <label class="btn btn-outline-forest btn-sm border-0 bg-light text-dark" for="typeTrap">Traps</label>
+                            <input type="radio" class="btn-check" name="typeToggle" id="typeBait">
+                            <label class="btn btn-outline-forest btn-sm border-0 bg-light text-dark" for="typeBait">Bait</label>
+                        </div>
+                        
+                        <a href="{% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}{{ url_for('admin.view_lines') }}{% elif session.get('role_id') == ROLE_OPERATOR %}{{ url_for('operator.view_lines') }}{% else %}{{ url_for('observer.view_lines') }}{% endif %}" class="btn btn-forest btn-sm rounded-pill w-100 mb-3 fw-bold shadow-sm d-flex align-items-center justify-content-center text-white">
+                            <i class="bi bi-globe me-2"></i>Group Boundary Map
+                        </a>
+                    </div>
+                    
+                    <div class="line-list-container">
+                        {% if lines %}
+                            {% for line in lines %}
+                            <div class="line-card {% if selected_line_id|string == line.line_id|string %}active-selection{% endif %}" 
+                                 data-type="{% if line.line_type|trim|lower == 'bait_station' %}bait{% else %}trap{% endif %}">
+                                <a href="{{ url_for(request.endpoint, line_id=line.line_id) }}" class="text-decoration-none text-dark d-block p-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold mb-0 line-clamp-1 fs-6">{{ line.line_name }}</div>
+                                            <div class="small text-muted mb-2 fw-semibold">
+                                                {% if line.line_type|trim|lower == 'bait_station' %}
+                                                {{ line.station_count }} Stations
+                                                {% else %}
+                                                {{ line.trap_count }} Traps
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                {% if line.line_type|trim|lower == 'bait_station' %}
+                                                <span class="status-pill bg-primary text-white fw-bold text-uppercase" style="font-size: 0.65rem; padding: 0.2rem 0.6rem;">Bait</span>
+                                                {% else %}
+                                                <span class="status-pill bg-success text-white fw-bold text-uppercase" style="font-size: 0.65rem; padding: 0.2rem 0.6rem;">Trap</span>
+                                                {% endif %}
+                                                <span class="status-pill {% if line.status == 'active' %}bg-success-soft text-success{% else %}bg-light text-muted{% endif %}">
+                                                    {{ line.status }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <i class="bi bi-chevron-right text-muted opacity-25 mt-1"></i>
+                                    </div>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-wind fs-2 opacity-25 mb-2 d-block"></i>
+                                No lines found in this group.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Detail View: Interactive Dashboard ──────── -->
+        <div class="col-12 col-lg-8">
+            {% if selected_line_id %}
+            <!-- Selected Line Identity -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-header bg-white border-bottom p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+
+                            <h3 class="fw-black text-dark mb-2">{% for l in lines %}{% if l.line_id|string == selected_line_id|string %}{{ l.line_name }}{% endif %}{% endfor %}</h3>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge bg-light text-dark border rounded-pill px-3 py-2 d-flex align-items-center gap-2">
+                                    <i class="bi bi-people-fill text-forest"></i>
+                                    <span class="fw-bold">Assigned:</span>
+                                    {% if operators %}
+                                        {% for op in operators %}{{ op.first_name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                    {% else %}
+                                        <span class="text-danger">Unassigned</span>
+                                    {% endif %}
+                                </span>
+                                {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                                <button class="btn btn-sm btn-link text-forest fw-bold text-decoration-none" data-bs-toggle="collapse" data-bs-target="#opManager">
+                                    <i class="bi bi-person-plus me-1"></i>Manage Crew
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            {% if selected_line_id and selected_line_id|string != 'None' %}
+                                {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                                <a href="{{ url_for('admin.edit_line', line_id=selected_line_id|int) }}" class="btn btn-light rounded-pill px-3 shadow-sm" title="Edit Line Settings">
+                                    <i class="bi bi-gear-fill"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('admin.action_retire_line', line_id=selected_line_id|int) }}" class="d-inline" onsubmit="return confirm('Retire this entire line and all its equipment?')">
+                                    <button type="submit" class="btn btn-light rounded-pill px-3 shadow-sm" title="Retire Line">
+                                        <i class="bi bi-trash-fill text-danger"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <a href="{{ url_for('admin.download_catches_csv', line_filter=selected_line_id) }}" class="btn btn-light rounded-pill px-3 shadow-sm" title="Export CSV">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Collapsible Operator Manager -->
+                    <div class="collapse mt-3" id="opManager">
+                        <div class="p-3 bg-light rounded-4 border">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Assign Member</label>
+                                    <form method="POST" action="{{ url_for('admin.assign_operator_to_line') }}" class="input-group">
+                                        <input type="hidden" name="line_id" value="{{ selected_line_id }}">
+                                        <input type="hidden" name="redirect_line_id" value="{{ selected_line_id }}">
+                                        <select name="user_id" class="form-select form-select-sm border-0">
+                                            <option value="" disabled selected>Select Team Member...</option>
+                                            {% for user in available_operators %}
+                                            <option value="{{ user.user_id }}">{{ user.first_name }} {{ user.last_name }} (@{{ user.username }})</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-forest btn-sm">Assign</button>
+                                    </form>
+                                </div>
+                                <div class="col-md-6 d-flex flex-wrap gap-2 align-items-center">
+                                    <label class="form-label small fw-bold w-100">Active Crew</label>
+                                    {% for op in operators %}
+                                    <div class="badge bg-white text-dark border p-2 rounded-3 d-flex align-items-center gap-2">
+                                        <span>@{{ op.username }}</span>
+                                        {% if selected_line_id and selected_line_id|string != 'None' %}
+                                        <form method="POST" action="{{ url_for('admin.remove_operator', line_id=selected_line_id|int, user_id=op.user_id|int) }}" class="d-inline">
+                                            <input type="hidden" name="redirect_line_id" value="{{ selected_line_id }}">
+                                            <button type="submit" class="btn btn-link p-0 text-danger" style="line-height: 1;">
+                                                <i class="bi bi-x-circle-fill"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4">
+                    <!-- KPI Cards Row -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="kpi-card d-flex align-items-center justify-content-between p-3" style="padding-top: 1.25rem !important; padding-bottom: 1.25rem !important;">
+                                <div class="kpi-icon-box bg-success-soft text-forest flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.25rem;">
+                                    <i class="bi bi-heart-pulse-fill"></i>
+                                </div>
+                                <div class="text-end">
+                                    <div class="h4 fw-black text-dark mb-0 lh-1">{{ line_kpis.health_score }}% <span class="smaller fw-normal text-muted" style="font-size: 0.7rem;">(7d)</span></div>
+                                    <div class="smaller fw-bold text-uppercase ls-1 text-muted mt-2" style="font-size: 0.65rem;">Line Health</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card d-flex align-items-center justify-content-between p-3" style="padding-top: 1.25rem !important; padding-bottom: 1.25rem !important;">
+                                <div class="kpi-icon-box bg-success-soft text-forest flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.25rem;">
+                                    <i class="bi bi-calendar-check-fill"></i>
+                                </div>
+                                <div class="text-end">
+                                    <div class="h4 fw-black text-dark mb-0 lh-1">
+                                        {% if line_kpis.last_check_date %}
+                                        {{ line_kpis.last_check_date.strftime('%d %b') }}
+                                        <span class="smaller fw-normal text-muted" style="font-size: 0.7rem;">
+                                            {% if line_kpis.last_check_by %}by {{ line_kpis.last_check_by.split(' ')[0] }}{% endif %}
+                                        </span>
+                                        {% else %}—{% endif %}
+                                    </div>
+                                    <div class="smaller fw-bold text-uppercase ls-1 text-muted mt-2" style="font-size: 0.65rem;">Last Check</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="kpi-card d-flex align-items-center justify-content-between p-3" style="padding-top: 1.25rem !important; padding-bottom: 1.25rem !important;">
+                                <div class="kpi-icon-box bg-warning-soft text-warning flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.25rem;">
+                                    <i class="bi bi-tools"></i>
+                                </div>
+                                <div class="text-end">
+                                    <div class="h4 fw-black text-warning mb-0 lh-1">{{ line_kpis.maintenance_count }} <span class="smaller fw-normal text-muted" style="font-size: 0.7rem;">Needs Repair</span></div>
+                                    <div class="smaller fw-bold text-uppercase ls-1 text-muted mt-2" style="font-size: 0.65rem;">Status Alert</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Map Integration -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3 d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-map-fill me-2 text-forest"></i>Interactive Route View</span>
+                            <span class="smaller text-muted">Functional (Green) vs Maintenance (Orange)</span>
+                        </h6>
+                        <div id="map"></div>
+                    </div>
+                    
+                    <!-- Equipment List Table -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-list-columns-reverse me-2"></i>Infrastructure Nodes</h6>
+                        {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                        {% if selected_line_id and selected_line_id|string != 'None' %}
+                        <a href="{{ url_for('admin.add_equipment', line_id=selected_line_id|int) }}" class="btn btn-sm btn-success rounded-pill px-3 fw-bold" style="background-color: #198754 !important; color: #fff !important; border-color: #198754 !important;">
+                            <i class="bi bi-plus-lg me-1"></i>Add Equipment
+                        </a>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    
+                    {% set equip = combined_equip %}
+                    {% if equip %}
+                    <div class="table-responsive rounded-4 border bg-white shadow-sm">
+                        <table class="table table-hover equipment-table mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Code</th>
+                                    <th style="width: 20%;">Type</th>
+                                    <th style="width: 20%;">Status</th>
+                                    <th style="width: 25%;">Coordinates</th>
+                                    <th class="text-end pe-4">Task</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in equip %}
+                                <tr>
+                                    <td class="ps-4 fw-black text-dark fs-6">
+                                        #{{ item.code }}
+                                        <div class="small text-muted" style="font-size: 0.7rem; font-weight: normal;">
+                                            {% if item.item_type == 'trap' %}
+                                                <span class="text-success"><i class="bi bi-grid-3x3-gap-fill"></i> Trap</span>
+                                            {% else %}
+                                                <span class="text-info"><i class="bi bi-signpost-2"></i> Bait Station</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border py-2 px-3 rounded-pill fw-normal" style="font-size: 0.75rem;">
+                                            {{ item.type or 'N/A' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge border-0 py-2 px-3 rounded-pill fw-bold" style="font-size: 0.7rem; {% if item.status in ['Functional', 'Deployed', 'Active'] %}background-color: #198754; color: #fff;{% elif item.status == 'Under Repair' %}background-color: #ffc107; color: #000;{% elif item.status == 'In Storage' %}background-color: #6c757d; color: #fff;{% else %}background-color: #dc3545; color: #fff;{% endif %}">
+                                            {{ item.status or 'Unknown' }}
+                                        </span>
+                                    </td>
+                                    <td class="mono-coord text-muted">
+                                        {{ (item.latitude|round(5)) if item.latitude else '0.00000' }}, {{ (item.longitude|round(5)) if item.longitude else '0.00000' }}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR] %}
+                                                {% if item.status == 'Retired' %}
+                                                <button class="btn btn-sm btn-light text-muted border px-3 rounded-pill fw-bold" disabled title="The item is no longer in service.">
+                                                    <i class="bi bi-lock-fill small me-1"></i>Record
+                                                </button>
+                                                {% else %}
+                                                <a href="{{ url_for('operator.add_catch', trap_code=item.code) if item.item_type == 'trap' else url_for('operator.add_bait_record', bait_station_code=item.code) }}" class="btn btn-sm record-btn px-3 rounded-pill fw-bold">
+                                                    Record
+                                                </a>
+                                                {% endif %}
+                                            {% endif %}
+                                            {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                                            <a href="{{ url_for('admin.edit_trap', trap_code=item.code) if item.item_type == 'trap' else url_for('admin.edit_bait_station', bait_station_code=item.code) }}" class="btn btn-sm btn-light border rounded-pill px-2" title="Move / Edit">
+                                                <i class="bi bi-pencil-fill text-muted" style="font-size: 0.75rem;"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('admin.action_retire_trap', trap_code=item.code) if item.item_type == 'trap' else url_for('admin.action_retire_bait_station', bait_station_code=item.code) }}" class="d-inline" onsubmit="return confirm('Retire this equipment?')">
+                                                <button type="submit" class="btn btn-sm btn-light border rounded-pill px-2" title="Retire">
+                                                    <i class="bi bi-trash-fill text-danger" style="font-size: 0.75rem;"></i>
+                                                </button>
+                                            </form>
+                                            {% elif session.get('role_id') == ROLE_OPERATOR %}
+                                            <a href="{{ url_for('operator.edit_trap', trap_code=item.code) if item.item_type == 'trap' else url_for('operator.edit_bait_station', bait_station_code=item.code) }}" class="btn btn-sm btn-light border rounded-pill px-2" title="Move / Edit">
+                                                <i class="bi bi-pencil-fill text-muted" style="font-size: 0.75rem;"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('operator.action_retire_trap', trap_code=item.code) if item.item_type == 'trap' else url_for('operator.action_retire_bait_station', bait_station_code=item.code) }}" class="d-inline" onsubmit="return confirm('Retire this equipment?')">
+                                                <button type="submit" class="btn btn-sm btn-light border rounded-pill px-2" title="Retire">
+                                                    <i class="bi bi-trash-fill text-danger" style="font-size: 0.75rem;"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <!-- Empty State CTA -->
+                    <div class="text-center py-5 bg-light rounded-4 border border-dashed">
+                        <i class="bi bi-plus-circle-dotted fs-1 text-muted mb-3 d-block opacity-25"></i>
+                        <h5 class="fw-bold text-dark">Get Started</h5>
+                        <p class="text-muted small">This line doesn't have any nodes mapped yet.</p>
+                        {% if session.get('role_id') in [ROLE_SUPER_ADMIN, ROLE_COORDINATOR] %}
+                        {% if selected_line_id and selected_line_id|string != 'None' %}
+                        <a href="{{ url_for('admin.add_equipment', line_id=selected_line_id|int) }}" class="btn btn-sm btn-success rounded-pill px-3 fw-bold" style="background-color: #198754 !important; color: #fff !important; border-color: #198754 !important;">
+                            <i class="bi bi-plus-lg me-1"></i>Add Equipment
+                        </a>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% else %}
+            <!-- Global Dashboard (Empty State) -->
+            <!-- Group Metrics Row -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm rounded-4 bg-forest text-white">
+                        <div class="card-body py-2 px-3 text-center">
+                            <div class="h4 fw-black mb-0">{{ stats.total_active_lines }}</div>
+                            <div class="smaller fw-bold text-uppercase ls-1 opacity-75" style="font-size: 0.65rem;">Active Lines</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm rounded-4 bg-forest text-white">
+                        <div class="card-body py-2 px-3 text-center">
+                            <div class="h4 fw-black mb-0">{{ stats.total_equipment }}</div>
+                            <div class="smaller fw-bold text-uppercase ls-1 text-white-50" style="font-size: 0.65rem;">Mapped Nodes</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm rounded-4 bg-white border">
+                        <div class="card-body py-2 px-3 text-center">
+                            <div class="h4 fw-black mb-0 text-dark">{{ stats.last_sync.strftime('%d %b') if stats.last_sync else '—' }}</div>
+                            <div class="smaller fw-bold text-uppercase ls-1 text-muted" style="font-size: 0.65rem;">Last Synchronisation</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if session.get('current_group_id') %}
+            <!-- Group Operational Area Map -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-map-fill me-2 text-forest"></i>Group Operational Area Map</span>
+                        {% if current_group_boundary_geojson %}
+                        <span class="badge bg-success-soft text-forest smaller">Boundary Defined</span>
+                        {% else %}
+                        <span class="badge bg-warning-soft text-warning smaller">No Boundary Defined</span>
+                        {% endif %}
+                    </h5>
+                    <div id="group-map" style="height: 320px; border-radius: 1.25rem; border: 1px solid rgba(0,0,0,0.1); z-index: 1;"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                            <h5 class="fw-bold text-dark"><i class="bi bi-clock-history me-2 text-forest"></i>Recent Deployment Activity</h5>
+                        </div>
+                        <div class="card-body p-4 pt-2">
+                            {% if recent_activity %}
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th class="ps-4 text-uppercase smaller fw-bold text-muted">Time</th>
+                                            <th class="text-uppercase smaller fw-bold text-muted">Operator</th>
+                                            <th class="text-uppercase smaller fw-bold text-muted">Line</th>
+                                            <th class="text-end pe-4 text-uppercase smaller fw-bold text-muted">Result</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for act in recent_activity %}
+                                        <tr>
+                                            <td class="ps-4 small text-muted">{{ act.date.strftime('%H:%M, %d %b') }}</td>
+                                            <td class="fw-bold text-dark">@{{ act.username }}</td>
+                                            <td><span class="badge bg-light text-dark border-0 rounded-pill">{{ act.line_name }}</span></td>
+                                            <td class="text-end pe-4">
+                                                {% if act.species_name == 'Empty' or not act.species_name or act.species_name == 'None' %}
+                                                    <span class="badge bg-secondary-soft text-secondary border border-secondary rounded-pill px-3 smaller fw-bold">NONE</span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill px-3 smaller fw-bold text-uppercase" style="{{ species_badge_style(act.species_name) }}">
+                                                        {{ act.species_name }}
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5 text-muted italic">
+                                <i class="bi bi-activity fs-2 mb-3 d-block opacity-25"></i>
+                                No telemetry data received for this group.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ── SCRIPTS ─────────────────────────────────────────────────── -->
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Map Initialization
+    {% if selected_line_id %}
+        const equipment = [
+            {% for t in traps %}
+            { code: "{{ t.code }}", lat: {{ t.latitude or 0 }}, lng: {{ t.longitude or 0 }}, category: "Trap", type: "{{ t.type }}", status: "{{ t.status }}" },
+            {% endfor %}
+            {% for s in bait_stations %}
+            { code: "{{ s.code }}", lat: {{ s.latitude or 0 }}, lng: {{ s.longitude or 0 }}, category: "Bait Station", type: "{{ s.type }}", status: "{{ s.status }}" },
+            {% endfor %}
+        ];
+
+        // Determine map center and zoom level
+        const mapLat = equipment.length > 0 ? equipment[0].lat : {{ group_latitude or -41.2865 }};
+        const mapLng = equipment.length > 0 ? equipment[0].lng : {{ group_longitude or 174.7762 }};
+        const defaultZoom = equipment.length > 0 ? 15 : {{ '13' if group_latitude else '5' }};
+
+        const map = L.map('map').setView([mapLat, mapLng], defaultZoom);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const greenIcon = L.divIcon({
+            className: 'custom-marker-green',
+            html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="42">
+                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#1a5e20" stroke="#ffffff" stroke-width="1.5"/>
+                   </svg>`,
+            iconSize: [28, 42],
+            iconAnchor: [14, 42],
+            popupAnchor: [0, -36]
+        });
+        const blueIcon = L.divIcon({
+            className: 'custom-marker-blue',
+            html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="42">
+                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#0066ff" stroke="#ffffff" stroke-width="1.5"/>
+                   </svg>`,
+            iconSize: [28, 42],
+            iconAnchor: [14, 42],
+            popupAnchor: [0, -36]
+        });
+
+        const bounds = [];
+        equipment.forEach(item => {
+            const icon = item.category === 'Trap' ? greenIcon : blueIcon;
+            L.marker([item.lat, item.lng], { icon: icon })
+                .bindPopup(`<b>${item.category}: #${item.code}</b><br>Type: ${item.type}<br>Status: ${item.status}`)
+                .addTo(map);
+            bounds.push([item.lat, item.lng]);
+        });
+        
+        // Zoom to equipment bounds or default location
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        // Draw boundary if defined for the group
+        {% if current_group_boundary_geojson %}
+        try {
+            const boundaryGeo = {{ current_group_boundary_geojson | safe }};
+            if (boundaryGeo && (boundaryGeo.type === 'Polygon' || boundaryGeo.type === 'MultiPolygon')) {
+                const boundaryLayer = L.geoJSON(boundaryGeo, {
+                    style: {
+                        color: '#3E6A44',
+                        fillColor: '#3E6A44',
+                        fillOpacity: 0.12,
+                        weight: 3,
+                        dashArray: '5, 5'
+                    }
+                }).addTo(map);
+                if (bounds.length === 0) {
+                    map.fitBounds(boundaryLayer.getBounds(), { padding: [50, 50] });
+                }
+            }
+        } catch (e) {
+            console.error("Error drawing boundary polygon", e);
+        }
+        {% endif %}
+    {% else %}
+        // Group Map initialization
+        const groupMapContainer = document.getElementById('group-map');
+        if (groupMapContainer) {
+            const groupLat = {{ group_latitude or -41.2865 }};
+            const groupLng = {{ group_longitude or 174.7762 }};
+            const defaultZoom = {{ '13' if group_latitude else '5' }};
+
+            const gMap = L.map('group-map').setView([groupLat, groupLng], defaultZoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(gMap);
+
+            // Add HQ marker if coordinates defined
+            {% if group_latitude and group_longitude %}
+                const redIcon = L.divIcon({
+                    className: 'custom-marker-red',
+                    html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="42">
+                             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#dc3545" stroke="#ffffff" stroke-width="1.5"/>
+                           </svg>`,
+                    iconSize: [28, 42],
+                    iconAnchor: [14, 42],
+                    popupAnchor: [0, -36]
+                });
+                L.marker([groupLat, groupLng], { icon: redIcon }).bindPopup("<b>Group Headquarters</b>").addTo(gMap);
+            {% endif %}
+
+            // Draw boundary polygon if defined
+            {% if current_group_boundary_geojson %}
+            try {
+                const boundaryGeo = {{ current_group_boundary_geojson | safe }};
+                if (boundaryGeo && boundaryGeo.type === 'Polygon') {
+                    const boundaryLayer = L.geoJSON(boundaryGeo, {
+                        style: {
+                            color: '#3E6A44',
+                            fillColor: '#3E6A44',
+                            fillOpacity: 0.12,
+                            weight: 3,
+                            dashArray: '5, 5'
+                        }
+                    }).addTo(gMap);
+                    
+                    gMap.fitBounds(boundaryLayer.getBounds(), { padding: [50, 50] });
+                }
+            } catch (e) {
+                console.error("Error drawing boundary polygon on group map", e);
+            }
+            {% endif %}
+        }
+    {% endif %}
+
+    // 2. Search and Filtering
+    const searchInput = document.getElementById('lineSearch');
+    const clearBtn = document.getElementById('clearSearch');
+    const cards = document.querySelectorAll('.line-card');
+    const toggles = document.querySelectorAll('input[name="typeToggle"]');
+
+    function filterLines() {
+        const query = searchInput.value.toLowerCase();
+        const activeType = document.querySelector('input[name="typeToggle"]:checked').id.replace('type', '').toLowerCase();
+        
+        clearBtn.style.display = query ? 'block' : 'none';
+
+        cards.forEach(card => {
+            const name = card.innerText.toLowerCase();
+            const type = card.dataset.type;
+            const matchesQuery = name.includes(query);
+            const matchesType = (activeType === 'all' || type === activeType);
+            card.style.display = (matchesQuery && matchesType) ? '' : 'none';
+        });
+    }
+
+    if (searchInput) searchInput.addEventListener('input', filterLines);
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        filterLines();
+        searchInput.focus();
+    });
+    toggles.forEach(t => t.addEventListener('change', filterLines));
+});
+</script>
+<style>
+.bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
+    .smaller { font-size: 0.7rem; }
+    .fw-black { font-weight: 900; }
+    .italic { font-style: italic; }
+</style>
+{% endblock %}

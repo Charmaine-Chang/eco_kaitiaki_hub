@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% set active_page = 'stock_inventory' %}
+{% block title %}{{ item.item_name }} - Stock Inventory{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small text-uppercase ls-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock_list') }}" class="text-decoration-none text-muted">Stock Inventory</a></li>
+        <li class="breadcrumb-item active text-forest fw-bold">{{ item.item_name }}</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="p-3 bg-white rounded-4 shadow-sm border-0">
+            <h1 class="h3 fw-black text-forest mb-2">{{ item.item_name }}</h1>
+            <p class="text-muted small mb-3">{{ item.item_category }} · Qty: <strong>{{ item.quantity }}</strong>{% if item.unit_of_measure %} {{ item.unit_of_measure }}{% endif %} · Re-order at: <strong>{{ item.threshold }}</strong></p>
+            <p class="mb-3">
+                <span class="badge bg-light text-dark border">Location:
+                    {% if item.line_name %}Line: {{ item.line_name }}
+                    {% elif item.storage_area_name %}Storage: {{ item.storage_area_name }}
+                    {% else %}Unassigned{% endif %}
+                </span>
+                {% if item.is_retired %}<span class="badge bg-secondary ms-1">Retired</span>{% endif %}
+            </p>
+            {% if not item.is_retired %}
+            <a href="{{ url_for('inventory.move_item', item_id=item.item_id) }}" class="btn btn-forest btn-sm rounded-pill fw-bold me-2">Manage inventory</a>
+            <a href="{{ url_for('inventory.edit_item', item_id=item.item_id) }}" class="btn btn-outline-forest btn-sm rounded-pill fw-bold">Configure item</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<h2 class="h5 fw-bold text-forest mt-4 mb-3">History</h2>
+<div class="table-responsive bg-white rounded-4 shadow-sm">
+    <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="ps-4">Date / time</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>From</th>
+                <th>To</th>
+                <th class="pe-4">Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in history %}
+            <tr>
+                <td class="ps-4 small">{{ row.created_at|date_nz }}</td>
+                <td>
+                    {% if row.action_type == 'create' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle text-uppercase px-2 py-1 rounded-pill" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">
+                        <i class="bi bi-plus-circle me-1"></i>Create
+                    </span>
+                    {% elif row.action_type == 'update' %}
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle text-uppercase px-2 py-1 rounded-pill" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">
+                        <i class="bi bi-pencil me-1"></i>Update
+                    </span>
+                    {% elif row.action_type == 'move' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-uppercase px-2 py-1 rounded-pill" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">
+                        <i class="bi bi-arrows-move me-1"></i>Move
+                    </span>
+                    {% elif row.action_type == 'retire' %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle text-uppercase px-2 py-1 rounded-pill" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">
+                        <i class="bi bi-archive me-1"></i>Retire
+                    </span>
+                    {% else %}
+                    <span class="badge bg-light text-dark border text-uppercase px-2 py-1 rounded-pill" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">
+                        {{ row.action_type }}
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="small">{% if row.username %}@{{ row.username }}{% else %}—{% endif %}</td>
+                <td class="small">{{ row.previous_location or '' }}</td>
+                <td class="small">{{ row.new_location or '' }}</td>
+                <td class="pe-4 small text-muted">{{ row.details or '' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">No history recorded yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

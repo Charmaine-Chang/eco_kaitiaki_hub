@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% set active_page = 'storage_areas' %}
+
+{% block title %}Storage Areas - Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+    .storage-area-card {
+        transition: all 0.2s ease-in-out;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+    .storage-area-card:hover {
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
+    }
+    .stat-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #f1f5f9;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="premium-breadcrumb mb-4">
+        <a href="{{ url_for('main.home') }}">
+            <i class="bi bi-house-door breadcrumb-icon"></i> Home
+        </a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="text-decoration-none text-muted">Dashboard</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="text-dark fw-bold">Storage Areas</span>
+    </div>
+
+    <div class="row align-items-end mb-4 g-3">
+        <div class="col-md-8">
+            <h1 class="h3 fw-black text-forest mb-1">Storage Areas</h1>
+            <p class="text-muted mb-0">Manage storage locations for organizing inventory and equipment.</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="d-flex justify-content-end gap-2 flex-wrap">
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-forest rounded-pill px-4 fw-bold">
+                    <i class="bi bi-arrow-left me-2"></i>Dashboard
+                </a>
+                <button type="button" class="btn btn-forest rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#createStorageModal">
+                    <i class="bi bi-plus-circle me-2"></i>New Storage Area
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3 p-md-4">
+            <form class="row g-3 align-items-end" method="GET">
+                <div class="col-md-9">
+                    <label class="form-label small fw-bold text-uppercase text-secondary ls-1 mb-1">Search</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 rounded-start-3"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0 border-0 shadow-sm rounded-end-3 bg-input-soft" placeholder="Search storage areas..." value="{{ search_query }}">
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-forest rounded-pill px-4 fw-bold shadow-sm flex-fill">
+                        <i class="bi bi-search me-1"></i> Search
+                    </button>
+                    <a href="{{ url_for('admin.view_storage_areas') }}" class="btn btn-outline-secondary rounded-pill px-3 fw-bold">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {% if storage_areas %}
+            {% for area in storage_areas %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card storage-area-card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div>
+                                <h5 class="card-title fw-black text-forest mb-1">{{ area.storage_area_name }}</h5>
+                                <p class="text-muted small mb-0">Storage location</p>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.edit_storage_area', storage_area_id=area.storage_area_id) }}">
+                                        <i class="bi bi-pencil me-2"></i>Edit
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="{{ url_for('admin.delete_storage_area', storage_area_id=area.storage_area_id) }}" style="display: inline;">
+                                            <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Are you sure? This storage area must have no assigned items.');">
+                                                <i class="bi bi-trash me-2"></i>Delete
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap mb-3">
+                            <span class="stat-badge">
+                                <i class="bi bi-stack text-forest"></i>
+                                <span><strong>{{ area.item_count }}</strong> item{{ area.item_count != 1 and 's' or '' }}</span>
+                            </span>
+                            <span class="stat-badge">
+                                <i class="bi bi-crosshair2 text-forest"></i>
+                                <span><strong>{{ area.trap_count }}</strong> trap{{ area.trap_count != 1 and 's' or '' }}</span>
+                            </span>
+                            <span class="stat-badge">
+                                <i class="bi bi-box-seam text-forest"></i>
+                                <span><strong>{{ area.bait_station_count }}</strong> station{{ area.bait_station_count != 1 and 's' or '' }}</span>
+                            </span>
+                        </div>
+
+                        <div class="mt-auto">
+                            <a href="{{ url_for('admin.edit_storage_area', storage_area_id=area.storage_area_id) }}" class="btn btn-sm btn-outline-forest rounded-pill w-100">
+                                <i class="bi bi-pencil me-1"></i>Manage
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-light">
+                    <i class="bi bi-inbox display-4 text-forest opacity-25 mb-4"></i>
+                    <h4 class="fw-bold mb-2">No Storage Areas Found</h4>
+                    <p class="text-muted mb-4">
+                        {% if search_query %}
+                            No storage areas match your search query. Try a different search term.
+                        {% else %}
+                            Create your first storage area to organize your inventory and equipment.
+                        {% endif %}
+                    </p>
+                    <a href="{{ url_for('admin.create_storage_area') }}" class="btn btn-forest rounded-pill px-5 fw-bold">
+                        <i class="bi bi-plus-circle me-2"></i>Create Storage Area
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.btn-forest { background-color: #1a5e20; color: white; }
+    .btn-forest:hover { background-color: #144d1a; color: white; }
+    .btn-outline-forest { color: #1a5e20; border-color: #1a5e20; }
+    .btn-outline-forest:hover { background-color: #1a5e20; color: white; }
+</style>
+
+<!-- Create Storage Area Modal -->
+<div class="modal fade" id="createStorageModal" tabindex="-1" aria-labelledby="createStorageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-forest text-white p-4 rounded-top-4">
+        <h5 class="modal-title fw-black" id="createStorageModalLabel"><i class="bi bi-plus-circle me-2"></i>Create Storage Area</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form method="POST" action="{{ url_for('admin.create_storage_area') }}" id="createStorageForm">
+            <div class="mb-4">
+                <label for="storage_area_name" class="form-label small fw-bold text-uppercase text-secondary ls-1">Storage Area Name <span class="text-danger">*</span></label>
+                <input 
+                    type="text" 
+                    id="storage_area_name" 
+                    name="storage_area_name" 
+                    class="form-control form-control-lg border-0 shadow-sm rounded-3" 
+                    placeholder="e.g. Darfield Base Shed, Main Warehouse"
+                    maxlength="50"
+                    required
+                    style="background: #f9fafb;"
+                >
+                <div class="form-text text-muted mt-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Choose a descriptive name for this storage location (max 50 characters).
+                </div>
+            </div>
+            <div class="d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-forest rounded-pill px-4 fw-bold shadow-sm">
+                    Create Storage Area
+                </button>
+            </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
