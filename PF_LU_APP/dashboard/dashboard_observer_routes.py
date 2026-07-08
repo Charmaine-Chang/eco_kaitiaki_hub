@@ -30,13 +30,13 @@ def observer_dashboard():
             
             if group_id:
                 # Scoped to group
-                cursor.execute("SELECT COUNT(*) as count FROM lines WHERE group_id = %s AND status = 'active'", (group_id,))
+                cursor.execute("SELECT COUNT(*) as count FROM `lines` WHERE group_id = %s AND status = 'active'", (group_id,))
                 stats['total_lines'] = cursor.fetchone()['count']
                 
                 cursor.execute("""
                     SELECT (
-                        (SELECT COUNT(*) FROM traps t JOIN lines l ON t.line_id = l.line_id WHERE l.group_id = %s AND (t.status = 'active' OR t.status IS NULL)) +
-                        (SELECT COUNT(*) FROM bait_stations b JOIN lines l ON b.line_id = l.line_id WHERE l.group_id = %s AND (b.status = 'active' OR b.status IS NULL))
+                        (SELECT COUNT(*) FROM traps t JOIN `lines` l ON t.line_id = l.line_id WHERE l.group_id = %s AND (t.status = 'active' OR t.status IS NULL)) +
+                        (SELECT COUNT(*) FROM bait_stations b JOIN `lines` l ON b.line_id = l.line_id WHERE l.group_id = %s AND (b.status = 'active' OR b.status IS NULL))
                     ) as count
                 """, (group_id, group_id))
                 stats['total_traps'] = cursor.fetchone()['count']
@@ -45,7 +45,7 @@ def observer_dashboard():
                 stats['total_members'] = cursor.fetchone()['count']
             else:
                 # Global stats (Role 4 is System Observer)
-                cursor.execute("SELECT COUNT(*) as count FROM lines WHERE status = 'active'")
+                cursor.execute("SELECT COUNT(*) as count FROM `lines` WHERE status = 'active'")
                 stats['total_lines'] = cursor.fetchone()['count']
                 
                 cursor.execute("""
@@ -64,7 +64,7 @@ def observer_dashboard():
             group_latitude = None
             group_longitude = None
             if group_id:
-                cursor.execute("SELECT boundary_geojson, latitude, longitude FROM groups WHERE group_id = %s", (group_id,))
+                cursor.execute("SELECT boundary_geojson, latitude, longitude FROM `groups` WHERE group_id = %s", (group_id,))
                 grp = cursor.fetchone()
                 if grp:
                     boundary_geojson = grp.get('boundary_geojson')

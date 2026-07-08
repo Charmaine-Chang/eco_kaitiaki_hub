@@ -19,9 +19,9 @@ def fetch_item_by_id(item_id, group_scope=None):
     cursor.execute(f"""
         SELECT i.*, sa.storage_area_name, l.line_name, g.group_name
         FROM inventory_items i
-        JOIN groups g ON i.group_id = g.group_id
+        JOIN `groups` g ON i.group_id = g.group_id
         LEFT JOIN storage_area sa ON i.storage_area_id = sa.storage_area_id
-        LEFT JOIN lines l ON i.line_id = l.line_id
+        LEFT JOIN `lines` l ON i.line_id = l.line_id
         WHERE i.item_id = %s{scope}
     """, tuple(params))
     row = cursor.fetchone()
@@ -35,9 +35,9 @@ def fetch_stock_list(group_id=None, show_retired=False):
     query = """
         SELECT i.*, sa.storage_area_name, l.line_name, g.group_name
         FROM inventory_items i
-        JOIN groups g ON i.group_id = g.group_id
+        JOIN `groups` g ON i.group_id = g.group_id
         LEFT JOIN storage_area sa ON i.storage_area_id = sa.storage_area_id
-        LEFT JOIN lines l ON i.line_id = l.line_id
+        LEFT JOIN `lines` l ON i.line_id = l.line_id
         WHERE 1=1
     """
     params = []
@@ -60,7 +60,7 @@ def fetch_consumable_stock(group_id=None, all_groups=False):
         SELECT i.item_id, i.item_category, i.item_name, i.quantity, i.threshold,
                i.group_id, g.group_name, sa.storage_area_name
         FROM inventory_items i
-        JOIN groups g ON i.group_id = g.group_id
+        JOIN `groups` g ON i.group_id = g.group_id
         LEFT JOIN storage_area sa ON i.storage_area_id = sa.storage_area_id
         WHERE i.is_retired IS NOT TRUE
           AND LOWER(i.item_category) LIKE 'bait%%'
@@ -82,7 +82,7 @@ def fetch_low_stock_alerts(group_id=None, all_groups=False):
     query = """
         SELECT i.item_id, i.item_name, i.quantity, i.threshold, i.group_id, g.group_name
         FROM inventory_items i
-        JOIN groups g ON i.group_id = g.group_id
+        JOIN `groups` g ON i.group_id = g.group_id
         WHERE i.is_retired IS NOT TRUE
           AND (LOWER(i.item_category) LIKE 'bait%%' OR LOWER(i.item_category) LIKE 'toxin%%')
           AND i.quantity < i.threshold
@@ -109,12 +109,11 @@ def create_item(group_id, category, name, quantity, unit_of_measure=None,
             (group_id, item_category, item_name, quantity, unit_of_measure,
              threshold, storage_area_id, line_id)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING item_id
     """, (group_id, category, name, quantity, unit_of_measure,
           threshold, storage_area_id, line_id))
-    result = cursor.fetchone()
+    result = cursor.lastrowid
     cursor.close()
-    return result['item_id'] if result else None
+    return result if result else None
 
 
 def find_existing_item(group_id, category, name, storage_area_id=None):
@@ -201,12 +200,11 @@ def create_split_item(group_id, category, name, quantity, unit_of_measure,
             (group_id, item_category, item_name, quantity, unit_of_measure,
              threshold, storage_area_id, line_id)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING item_id
     """, (group_id, category, name, quantity, unit_of_measure,
           threshold, storage_area_id, line_id))
-    result = cursor.fetchone()
+    result = cursor.lastrowid
     cursor.close()
-    return result['item_id'] if result else None
+    return result if result else None
 
 
 # ── Audit Log ─────────────────────────────────────────────────────
@@ -235,7 +233,7 @@ def fetch_audit_log(group_id=None):
         FROM inventory_log il
         LEFT JOIN users u ON il.user_id = u.user_id
         LEFT JOIN inventory_items ii ON il.target_item_type = 'item' AND il.target_item_id = ii.item_id
-        LEFT JOIN groups g ON il.group_id = g.group_id
+        LEFT JOIN `groups` g ON il.group_id = g.group_id
         WHERE 1=1
     """
     params = []
@@ -281,12 +279,12 @@ def create_storage_area(group_id, name):
     """Create a new storage area."""
     cursor = get_cursor()
     cursor.execute(
-        "INSERT INTO storage_area (group_id, storage_area_name) VALUES (%s, %s) RETURNING storage_area_id",
+        "INSERT INTO storage_area (group_id, storage_area_name) VALUES (%s, %s)",
         (group_id, name),
     )
-    result = cursor.fetchone()
+    result = cursor.lastrowid
     cursor.close()
-    return result['storage_area_id'] if result else None
+    return result if result else None
 
 
 def validate_storage_area(storage_area_id, group_id):
@@ -305,23 +303,23 @@ def fetch_stored_equipment(group_id):
     """Fetch traps and bait stations that are 'In Storage'."""
     cursor = get_cursor()
     cursor.execute("""
-        SELECT NULL::integer AS item_id, 'Trap' AS item_category,
+        SELECT NULL AS item_id, 'Trap' AS item_category,
                CONCAT('Trap #', t.trap_code) AS item_name,
-               NULL::numeric AS quantity, NULL::numeric AS threshold,
+               NULL AS quantity, NULL AS threshold,
                sa.storage_area_id, sa.storage_area_name
         FROM traps t
-        LEFT JOIN lines l ON t.line_id = l.line_id
+        LEFT JOIN `lines` l ON t.line_id = l.line_id
         LEFT JOIN storage_area sa ON t.storage_area_id = sa.storage_area_id
         LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
         WHERE es.equipment_status_name = 'In Storage'
           AND (sa.group_id = %s OR l.group_id = %s)
         UNION ALL
-        SELECT NULL::integer AS item_id, 'Bait Station' AS item_category,
+        SELECT NULL AS item_id, 'Bait Station' AS item_category,
                CONCAT('Station #', b.bait_station_code) AS item_name,
-               NULL::numeric AS quantity, NULL::numeric AS threshold,
+               NULL AS quantity, NULL AS threshold,
                sa.storage_area_id, sa.storage_area_name
         FROM bait_stations b
-        LEFT JOIN lines l ON b.line_id = l.line_id
+        LEFT JOIN `lines` l ON b.line_id = l.line_id
         LEFT JOIN storage_area sa ON b.storage_area_id = sa.storage_area_id
         LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
         WHERE es.equipment_status_name = 'In Storage'
@@ -344,7 +342,7 @@ def fetch_destinations(group_id):
     )
     storage_areas = cursor.fetchall()
     cursor.execute(
-        "SELECT line_id, line_name FROM lines WHERE group_id = %s AND status = 'active' ORDER BY line_name",
+        "SELECT line_id, line_name FROM `lines` WHERE group_id = %s AND status = 'active' ORDER BY line_name",
         (group_id,),
     )
     lines = cursor.fetchall()

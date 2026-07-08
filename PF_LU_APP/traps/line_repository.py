@@ -7,7 +7,7 @@ def fetch_lines_for_group(group_id):
     """Get active lines for a group."""
     cursor = get_cursor()
     cursor.execute(
-        "SELECT line_id, line_name FROM lines WHERE group_id = %s AND status = 'active' ORDER BY line_name",
+        "SELECT line_id, line_name FROM `lines` WHERE group_id = %s AND status = 'active' ORDER BY line_name",
         (group_id,),
     )
     rows = cursor.fetchall()
@@ -18,7 +18,7 @@ def fetch_lines_for_group(group_id):
 def fetch_all_active_lines():
     """Get all active lines (super admin view)."""
     cursor = get_cursor()
-    cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' ORDER BY line_name ASC")
+    cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' ORDER BY line_name ASC")
     rows = cursor.fetchall()
     cursor.close()
     return rows
@@ -27,7 +27,7 @@ def fetch_all_active_lines():
 def fetch_line_by_id(line_id):
     """Get a single line record."""
     cursor = get_cursor()
-    cursor.execute("SELECT * FROM lines WHERE line_id = %s", (line_id,))
+    cursor.execute("SELECT * FROM `lines` WHERE line_id = %s", (line_id,))
     row = cursor.fetchone()
     cursor.close()
     return row
@@ -38,12 +38,12 @@ def check_line_name_exists(line_name, group_id, exclude_line_id=None):
     cursor = get_cursor()
     if exclude_line_id:
         cursor.execute(
-            "SELECT line_id FROM lines WHERE line_name ILIKE %s AND line_id != %s AND group_id = %s",
+            "SELECT line_id FROM `lines` WHERE line_name LIKE %s AND line_id != %s AND group_id = %s",
             (line_name, exclude_line_id, group_id),
         )
     else:
         cursor.execute(
-            "SELECT line_id FROM lines WHERE line_name ILIKE %s AND group_id = %s",
+            "SELECT line_id FROM `lines` WHERE line_name LIKE %s AND group_id = %s",
             (line_name, group_id),
         )
     row = cursor.fetchone()
@@ -55,7 +55,7 @@ def insert_line(line_name, line_type, status, group_id):
     """Create a new line."""
     cursor = get_cursor()
     cursor.execute(
-        "INSERT INTO lines (line_name, line_type, status, group_id) VALUES (%s, %s, %s, %s)",
+        "INSERT INTO `lines` (line_name, line_type, status, group_id) VALUES (%s, %s, %s, %s)",
         (line_name, line_type, status, group_id),
     )
     cursor.close()
@@ -65,7 +65,7 @@ def update_line(line_id, line_name, line_type, status):
     """Update a line record."""
     cursor = get_cursor()
     cursor.execute(
-        "UPDATE lines SET line_name = %s, line_type = %s, status = %s WHERE line_id = %s",
+        "UPDATE `lines` SET line_name = %s, line_type = %s, status = %s WHERE line_id = %s",
         (line_name, line_type, status, line_id),
     )
     cursor.close()
@@ -74,21 +74,21 @@ def update_line(line_id, line_name, line_type, status):
 def deactivate_line(line_id):
     """Set a line to inactive."""
     cursor = get_cursor()
-    cursor.execute("UPDATE lines SET status = 'inactive' WHERE line_id = %s", (line_id,))
+    cursor.execute("UPDATE `lines` SET status = 'inactive' WHERE line_id = %s", (line_id,))
     cursor.close()
 
 
 def reactivate_line(line_id):
     """Set a line back to active."""
     cursor = get_cursor()
-    cursor.execute("UPDATE lines SET status = 'active' WHERE line_id = %s", (line_id,))
+    cursor.execute("UPDATE `lines` SET status = 'active' WHERE line_id = %s", (line_id,))
     cursor.close()
 
 
 def fetch_line_group_id(line_id):
     """Get the group_id for a line."""
     cursor = get_cursor()
-    cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (line_id,))
+    cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (line_id,))
     row = cursor.fetchone()
     cursor.close()
     return row['group_id'] if row else None
@@ -107,12 +107,12 @@ def fetch_lines_with_equipment(session):
                 (SELECT COUNT(*) FROM bait_stations b WHERE b.line_id = l.line_id) as bait_station_count,
                 (SELECT COUNT(*) FROM operator_lines ol WHERE ol.line_id = l.line_id) as assigned_count,
                 COALESCE(
-                    (SELECT STRING_AGG(CONCAT(u.first_name, ' ', u.last_name), ', ')
+                    (SELECT GROUP_CONCAT(CONCAT(u.first_name, ' ', u.last_name) SEPARATOR ', ')
                      FROM operator_lines ol JOIN users u ON ol.user_id = u.user_id
                       WHERE ol.line_id = l.line_id),
                     'Unassigned'
                 ) as operator_names
-            FROM lines l JOIN groups g ON l.group_id = g.group_id
+            FROM `lines` l JOIN `groups` g ON l.group_id = g.group_id
             WHERE l.status = 'active'
             ORDER BY g.group_name, l.line_name
         """)
@@ -123,12 +123,12 @@ def fetch_lines_with_equipment(session):
                 (SELECT COUNT(*) FROM bait_stations b WHERE b.line_id = l.line_id) as bait_station_count,
                 (SELECT COUNT(*) FROM operator_lines ol WHERE ol.line_id = l.line_id) as assigned_count,
                 COALESCE(
-                    (SELECT STRING_AGG(CONCAT(u.first_name, ' ', u.last_name), ', ')
+                    (SELECT GROUP_CONCAT(CONCAT(u.first_name, ' ', u.last_name) SEPARATOR ', ')
                      FROM operator_lines ol JOIN users u ON ol.user_id = u.user_id
                      WHERE ol.line_id = l.line_id),
                     'Unassigned'
                 ) as operator_names
-            FROM lines l JOIN groups g ON l.group_id = g.group_id
+            FROM `lines` l JOIN `groups` g ON l.group_id = g.group_id
             WHERE l.group_id = %s AND l.status = 'active'
             ORDER BY l.line_name
         """, (current_group_id,))
@@ -140,7 +140,7 @@ def fetch_lines_with_equipment(session):
 def fetch_lines_scoped(cursor, group_id, is_super_admin=False):
     """Get active lines scoped by group_id or all if is_super_admin."""
     if is_super_admin:
-        cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' ORDER BY line_name ASC")
+        cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' ORDER BY line_name ASC")
     else:
-        cursor.execute("SELECT line_id, line_name FROM lines WHERE group_id = %s AND status = 'active' ORDER BY line_name ASC", (group_id,))
+        cursor.execute("SELECT line_id, line_name FROM `lines` WHERE group_id = %s AND status = 'active' ORDER BY line_name ASC", (group_id,))
     return cursor.fetchall()

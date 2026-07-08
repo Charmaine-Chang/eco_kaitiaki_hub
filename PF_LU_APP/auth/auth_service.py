@@ -1,5 +1,4 @@
-import psycopg2
-from PF_LU_APP.db import get_db, get_cursor_context
+from PF_LU_APP.db import get_db, get_cursor_context, IntegrityError, DatabaseError
 from PF_LU_APP import bcrypt
 
 def register_user(username, first_name, last_name, email, password, contact_information, emergency_contact):
@@ -17,7 +16,7 @@ def register_user(username, first_name, last_name, email, password, contact_info
             """, (username, first_name, last_name, email, password_hash, contact_information, emergency_contact, 'Active'))
             get_db().commit()
             return True, None
-    except psycopg2.IntegrityError as e:
+    except IntegrityError as e:
         get_db().rollback()
         error_msg = str(e).lower()
         if 'email' in error_msg:
@@ -52,6 +51,6 @@ def update_password(user_id, current_hash, current_password, new_password, confi
             cur.execute("UPDATE users SET password_hash=%s WHERE user_id=%s", (new_hash, user_id))
             get_db().commit()
         return True, None
-    except psycopg2.DatabaseError as e:
+    except DatabaseError as e:
         get_db().rollback()
         return False, "An error occurred while updating the database."

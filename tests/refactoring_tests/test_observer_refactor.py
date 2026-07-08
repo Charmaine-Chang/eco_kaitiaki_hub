@@ -35,7 +35,7 @@ class TestObserverRefactor(unittest.TestCase):
     def test_observer_dashboard_correct_role_db_error_handled(self):
         """
         Test that users with the correct role can access the dashboard.
-        Since we have no DB connection mocked here, it should hit the psycopg2/DB error
+        Since we have no DB connection mocked here, it should hit the pymysql/DB error
         and render the template with empty stats instead of crashing.
         """
         with self.client.session_transaction() as sess:

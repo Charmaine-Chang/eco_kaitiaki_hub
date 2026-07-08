@@ -21,9 +21,9 @@ def view_inventory():
     try:
         with get_cursor_context() as cursor:
             if group_id:
-                cursor.execute("SELECT line_id, line_name FROM lines WHERE group_id = %s AND status = 'active' ORDER BY line_name", (group_id,))
+                cursor.execute("SELECT line_id, line_name FROM `lines` WHERE group_id = %s AND status = 'active' ORDER BY line_name", (group_id,))
             else:
-                cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' ORDER BY line_name")
+                cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' ORDER BY line_name")
             all_lines = cursor.fetchall()
 
             page = request.args.get('page', 1, type=int)
@@ -35,7 +35,7 @@ def view_inventory():
                        'trap' as equip_type, t.status, es.equipment_status_name as equipment_status_name
                 FROM traps t
                 JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-                LEFT JOIN lines l ON t.line_id = l.line_id
+                LEFT JOIN `lines` l ON t.line_id = l.line_id
                 LEFT JOIN storage_area sa ON t.storage_area_id = sa.storage_area_id
                 LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
             """
@@ -45,7 +45,7 @@ def view_inventory():
                        'bait_station' as equip_type, b.status, es.equipment_status_name as equipment_status_name
                 FROM bait_stations b
                 JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-                LEFT JOIN lines l ON b.line_id = l.line_id
+                LEFT JOIN `lines` l ON b.line_id = l.line_id
                 LEFT JOIN storage_area sa ON b.storage_area_id = sa.storage_area_id
                 LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
             """
@@ -62,7 +62,7 @@ def view_inventory():
                 bs_select += " WHERE 1=1"
 
             if search_query:
-                where_clauses += " AND code ILIKE %s"
+                where_clauses += " AND code LIKE %s"
                 params.append(f'%{search_query}%')
             if line_filter:
                 where_clauses += " AND line_id = %s"
@@ -158,7 +158,7 @@ def update_equipment_status():
                             SELECT t.trap_code, t.status AS current_status, es.equipment_status_name AS current_status_name
                             FROM traps t
                             LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
-                            LEFT JOIN lines l ON t.line_id = l.line_id
+                            LEFT JOIN `lines` l ON t.line_id = l.line_id
                             LEFT JOIN storage_area sa ON t.storage_area_id = sa.storage_area_id
                             WHERE t.trap_code = %s AND (l.group_id = %s OR sa.group_id = %s)
                         """,
@@ -181,7 +181,7 @@ def update_equipment_status():
                             SELECT b.bait_station_code, b.status AS current_status, es.equipment_status_name AS current_status_name
                             FROM bait_stations b
                             LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
-                            LEFT JOIN lines l ON b.line_id = l.line_id
+                            LEFT JOIN `lines` l ON b.line_id = l.line_id
                             LEFT JOIN storage_area sa ON b.storage_area_id = sa.storage_area_id
                             WHERE b.bait_station_code = %s AND (l.group_id = %s OR sa.group_id = %s)
                         """,

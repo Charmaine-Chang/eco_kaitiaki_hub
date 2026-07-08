@@ -30,7 +30,7 @@ def view_storage_areas():
                 """
                 params = []
                 if search_query:
-                    query += " WHERE sa.storage_area_name ILIKE %s"
+                    query += " WHERE sa.storage_area_name LIKE %s"
                     params.append(f'%{search_query}%')
             else:
                 query = """
@@ -46,7 +46,7 @@ def view_storage_areas():
                 """
                 params = [group_id]
                 if search_query:
-                    query += " AND sa.storage_area_name ILIKE %s"
+                    query += " AND sa.storage_area_name LIKE %s"
                     params.append(f'%{search_query}%')
             
             query += " GROUP BY sa.storage_area_id, sa.storage_area_name ORDER BY sa.storage_area_name ASC"
@@ -97,10 +97,9 @@ def create_storage_area():
                 
                 # Create the storage area
                 cursor.execute(
-                    "INSERT INTO storage_area (group_id, storage_area_name) VALUES (%s, %s) RETURNING storage_area_id",
+                    "INSERT INTO storage_area (group_id, storage_area_name) VALUES (%s, %s)",
                     (group_id, storage_area_name)
                 )
-                new_area = cursor.fetchone()
                 conn.commit()
                 
             flash(f"Storage area '{storage_area_name}' created successfully!", "success")

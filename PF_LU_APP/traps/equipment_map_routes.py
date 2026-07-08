@@ -24,10 +24,10 @@ def equipment_map():
                        t.latitude,
                        t.longitude,
                        es.equipment_status_name AS status,
-                       (SELECT MAX(tc.date) FROM trap_catches tc WHERE tc.trap_code = t.trap_code) AS last_check
+                       (SELECT MAX(tc.`date`) FROM trap_catches tc WHERE tc.trap_code = t.trap_code) AS last_check
                 FROM traps t
                 JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
                 WHERE (t.status = 'active' OR t.status IS NULL)
                   AND l.group_id = %s
@@ -46,10 +46,10 @@ def equipment_map():
                        b.latitude,
                        b.longitude,
                        es.equipment_status_name AS status,
-                       (SELECT MAX(bsr.date) FROM bait_station_records bsr WHERE bsr.bait_station_code = b.bait_station_code) AS last_check
+                       (SELECT MAX(bsr.`date`) FROM bait_station_records bsr WHERE bsr.bait_station_code = b.bait_station_code) AS last_check
                 FROM bait_stations b
                 JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-                JOIN lines l ON b.line_id = l.line_id
+                JOIN `lines` l ON b.line_id = l.line_id
                 LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
                 WHERE (b.status = 'active' OR b.status IS NULL)
                   AND l.group_id = %s
@@ -98,7 +98,7 @@ def equipment_map():
             # ---------- Lines for filter dropdown ----------
             cursor.execute(
                 """
-                SELECT line_id, line_name FROM lines
+                SELECT line_id, line_name FROM `lines`
                 WHERE group_id = %s AND status = 'active'
                 ORDER BY line_name ASC
                 """,
@@ -109,7 +109,7 @@ def equipment_map():
             # ---------- Fetch group boundary (safe) ----------
             boundary_geojson = None
             try:
-                cursor.execute("SELECT boundary_geojson FROM groups WHERE group_id = %s", (group_id,))
+                cursor.execute("SELECT boundary_geojson FROM `groups` WHERE group_id = %s", (group_id,))
                 g_row = cursor.fetchone()
                 boundary_geojson = g_row['boundary_geojson'] if (g_row and g_row.get('boundary_geojson')) else None
             except Exception as e:

@@ -22,7 +22,7 @@ def fetch_group_boundary(group_id):
     """Get group boundary geojson and coordinates."""
     cursor = get_cursor()
     cursor.execute(
-        "SELECT boundary_geojson, latitude, longitude FROM groups WHERE group_id = %s",
+        "SELECT boundary_geojson, latitude, longitude FROM `groups` WHERE group_id = %s",
         (group_id,),
     )
     row = cursor.fetchone()
@@ -35,7 +35,7 @@ def fetch_all_group_boundaries():
     cursor = get_cursor()
     cursor.execute("""
         SELECT group_name, boundary_geojson, latitude, longitude
-        FROM groups
+        FROM `groups`
         WHERE status = 'active' AND boundary_geojson IS NOT NULL
     """)
     rows = cursor.fetchall()
@@ -46,7 +46,7 @@ def fetch_all_group_boundaries():
 def fetch_group_info(group_id):
     """Get group name and visibility."""
     cursor = get_cursor()
-    cursor.execute("SELECT group_name, visibility FROM groups WHERE group_id = %s", (group_id,))
+    cursor.execute("SELECT group_name, visibility FROM `groups` WHERE group_id = %s", (group_id,))
     row = cursor.fetchone()
     cursor.close()
     return row
@@ -59,7 +59,7 @@ def fetch_pending_groups():
     cursor = get_cursor()
     cursor.execute("""
         SELECT g.*, u.first_name, u.last_name
-        FROM groups g
+        FROM `groups` g
         JOIN users u ON g.created_by = u.user_id
         WHERE g.status = 'pending'
         ORDER BY g.created_at DESC
@@ -78,7 +78,7 @@ def fetch_pending_members(group_id=None):
         FROM group_membership gm
         JOIN users u ON gm.user_id = u.user_id
         JOIN roles r ON gm.role_id = r.role_id
-        JOIN groups g ON gm.group_id = g.group_id
+        JOIN `groups` g ON gm.group_id = g.group_id
         WHERE gm.membership_status = 'pending'
     """
     params = []
@@ -100,7 +100,7 @@ def fetch_pending_upgrades(group_id=None):
                rur.created_at, g.group_name, rur.user_id, rur.group_id
         FROM role_upgrade_requests rur
         JOIN users u ON rur.user_id = u.user_id
-        JOIN groups g ON rur.group_id = g.group_id
+        JOIN `groups` g ON rur.group_id = g.group_id
         WHERE rur.status = 'pending'
     """
     params = []
@@ -122,22 +122,22 @@ def fetch_admin_stats(group_id=None):
     stats = {}
 
     if group_id:
-        cursor.execute("SELECT COUNT(*) as count FROM traps WHERE line_id IN (SELECT line_id FROM lines WHERE group_id = %s) AND status = 'active'", (group_id,))
+        cursor.execute("SELECT COUNT(*) as count FROM traps WHERE line_id IN (SELECT line_id FROM `lines` WHERE group_id = %s) AND status = 'active'", (group_id,))
         stats['total_traps'] = cursor.fetchone()['count']
-        cursor.execute("SELECT COUNT(*) as count FROM bait_stations WHERE line_id IN (SELECT line_id FROM lines WHERE group_id = %s) AND status = 'active'", (group_id,))
+        cursor.execute("SELECT COUNT(*) as count FROM bait_stations WHERE line_id IN (SELECT line_id FROM `lines` WHERE group_id = %s) AND status = 'active'", (group_id,))
         stats['active_stations'] = cursor.fetchone()['count']
-        cursor.execute("SELECT COUNT(*) as count FROM lines WHERE group_id = %s AND status = 'active'", (group_id,))
+        cursor.execute("SELECT COUNT(*) as count FROM `lines` WHERE group_id = %s AND status = 'active'", (group_id,))
         stats['active_lines'] = cursor.fetchone()['count']
     else:
         cursor.execute("SELECT COUNT(*) as count FROM traps WHERE status = 'active'")
         stats['total_traps'] = cursor.fetchone()['count']
         cursor.execute("SELECT COUNT(*) as count FROM bait_stations WHERE status = 'active'")
         stats['active_stations'] = cursor.fetchone()['count']
-        cursor.execute("SELECT COUNT(*) as count FROM groups WHERE status = 'active'")
+        cursor.execute("SELECT COUNT(*) as count FROM `groups` WHERE status = 'active'")
         stats['total_groups'] = cursor.fetchone()['count']
         cursor.execute("SELECT COUNT(*) as count FROM users")
         stats['total_users'] = cursor.fetchone()['count']
-        cursor.execute("SELECT COUNT(*) as count FROM groups WHERE status = 'pending'")
+        cursor.execute("SELECT COUNT(*) as count FROM `groups` WHERE status = 'pending'")
         stats['pending_tasks'] = cursor.fetchone()['count']
 
     cursor.close()
@@ -148,13 +148,13 @@ def fetch_recent_activity(group_id=None, limit=10):
     """Fetch recent catch activity."""
     cursor = get_cursor()
     query = """
-        SELECT 'catch' as type, tc.date as timestamp, u.username,
+        SELECT 'catch' as type, tc.`date` as timestamp, u.username,
                t.trap_code, s.species_name, g.group_name
         FROM trap_catches tc
         JOIN users u ON tc.recorded_by = u.user_id
         JOIN traps t ON tc.trap_code = t.trap_code
-        JOIN lines l ON t.line_id = l.line_id
-        JOIN groups g ON l.group_id = g.group_id
+        JOIN `lines` l ON t.line_id = l.line_id
+        JOIN `groups` g ON l.group_id = g.group_id
         LEFT JOIN species s ON tc.species_id = s.species_id
         WHERE 1=1
     """
@@ -162,7 +162,7 @@ def fetch_recent_activity(group_id=None, limit=10):
     if group_id:
         query += " AND g.group_id = %s"
         params.append(group_id)
-    query += f" ORDER BY tc.date DESC LIMIT {limit}"
+    query += f" ORDER BY tc.`date` DESC LIMIT {limit}"
     cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
     cursor.close()
@@ -174,13 +174,13 @@ def fetch_recent_activity(group_id=None, limit=10):
 def approve_group(group_id):
     """Activate a group and assign creator as coordinator."""
     cursor = get_cursor()
-    cursor.execute("SELECT created_by, group_name FROM groups WHERE group_id = %s", (group_id,))
+    cursor.execute("SELECT created_by, group_name FROM `groups` WHERE group_id = %s", (group_id,))
     group = cursor.fetchone()
     if not group:
         cursor.close()
         return None
 
-    cursor.execute("UPDATE groups SET status = 'active' WHERE group_id = %s", (group_id,))
+    cursor.execute("UPDATE `groups` SET status = 'active' WHERE group_id = %s", (group_id,))
 
     cursor.execute(
         "SELECT 1 FROM group_membership WHERE user_id = %s AND group_id = %s",
@@ -204,7 +204,7 @@ def approve_group(group_id):
 def reject_group(group_id):
     """Reject a group application."""
     cursor = get_cursor()
-    cursor.execute("UPDATE groups SET status = 'rejected' WHERE group_id = %s", (group_id,))
+    cursor.execute("UPDATE `groups` SET status = 'rejected' WHERE group_id = %s", (group_id,))
     cursor.close()
 
 
@@ -259,7 +259,7 @@ def fetch_operator_lines(user_id, group_id, is_super_admin=False, is_coordinator
                     ELSE (SELECT COUNT(*) FROM traps WHERE line_id = l.line_id AND (status = 'active' OR status IS NULL))
                 END as equipment_count,
                 TRUE as is_assigned
-            FROM lines l
+            FROM `lines` l
             WHERE l.group_id = %s AND l.status = 'active'
             ORDER BY l.line_name ASC
         """, (group_id,))
@@ -271,7 +271,7 @@ def fetch_operator_lines(user_id, group_id, is_super_admin=False, is_coordinator
                     ELSE (SELECT COUNT(*) FROM traps WHERE line_id = l.line_id AND (status = 'active' OR status IS NULL))
                 END as equipment_count,
                 TRUE as is_assigned
-            FROM lines l
+            FROM `lines` l
             JOIN operator_lines ol ON l.line_id = ol.line_id
             WHERE ol.user_id = %s AND l.status = 'active'
             ORDER BY l.line_name ASC
@@ -288,10 +288,10 @@ def fetch_equipment_map_data(group_id, line_id=None):
     trap_query = """
         SELECT t.trap_code AS code, tt.trap_type_name AS type,
                t.latitude, t.longitude, es.equipment_status_name AS status,
-               (SELECT MAX(tc.date) FROM trap_catches tc WHERE tc.trap_code = t.trap_code) AS last_check
+               (SELECT MAX(tc.`date`) FROM trap_catches tc WHERE tc.trap_code = t.trap_code) AS last_check
         FROM traps t
         JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
         WHERE (t.status = 'active' OR t.status IS NULL) AND l.group_id = %s
     """
@@ -305,10 +305,10 @@ def fetch_equipment_map_data(group_id, line_id=None):
     bs_query = """
         SELECT b.bait_station_code AS code, bt.bait_station_type_name AS type,
                b.latitude, b.longitude, es.equipment_status_name AS status,
-               (SELECT MAX(bsr.date) FROM bait_station_records bsr WHERE bsr.bait_station_code = b.bait_station_code) AS last_check
+               (SELECT MAX(bsr.`date`) FROM bait_station_records bsr WHERE bsr.bait_station_code = b.bait_station_code) AS last_check
         FROM bait_stations b
         JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-        JOIN lines l ON b.line_id = l.line_id
+        JOIN `lines` l ON b.line_id = l.line_id
         LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
         WHERE (b.status = 'active' OR b.status IS NULL) AND l.group_id = %s
     """
@@ -359,7 +359,7 @@ def fetch_line_health(line_id):
     cursor.execute("""
         SELECT COUNT(DISTINCT bait_station_code) as checked_count
         FROM bait_station_records
-        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+        WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
         AND bait_station_code IN (SELECT bait_station_code FROM bait_stations WHERE line_id = %s)
     """, (line_id,))
     checked_stations = cursor.fetchone()['checked_count']
@@ -367,26 +367,26 @@ def fetch_line_health(line_id):
     cursor.execute("""
         SELECT COUNT(DISTINCT trap_code) as checked_count
         FROM trap_catches
-        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+        WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
         AND trap_code IN (SELECT trap_code FROM traps WHERE line_id = %s)
     """, (line_id,))
     checked_traps = cursor.fetchone()['checked_count']
 
     cursor.execute("""
-        SELECT bsr.date, COALESCE(u.first_name, u.username) || ' ' || COALESCE(u.last_name, '') as operator
+        SELECT bsr.`date`, CONCAT(COALESCE(u.first_name, u.username), ' ', COALESCE(u.last_name, '')) as operator
         FROM bait_station_records bsr
         JOIN users u ON bsr.recorded_by = u.user_id
         WHERE bsr.bait_station_code IN (SELECT bait_station_code FROM bait_stations WHERE line_id = %s)
-        ORDER BY bsr.date DESC LIMIT 1
+        ORDER BY bsr.`date` DESC LIMIT 1
     """, (line_id,))
     last_station_check = cursor.fetchone()
 
     cursor.execute("""
-        SELECT tc.date, COALESCE(u.first_name, u.username) || ' ' || COALESCE(u.last_name, '') as operator
+        SELECT tc.`date`, CONCAT(COALESCE(u.first_name, u.username), ' ', COALESCE(u.last_name, '')) as operator
         FROM trap_catches tc
         JOIN users u ON tc.recorded_by = u.user_id
         WHERE tc.trap_code IN (SELECT trap_code FROM traps WHERE line_id = %s)
-        ORDER BY tc.date DESC LIMIT 1
+        ORDER BY tc.`date` DESC LIMIT 1
     """, (line_id,))
     last_trap_check = cursor.fetchone()
 
@@ -404,26 +404,26 @@ def fetch_line_recent_activity(line_id, line_type, limit=5):
     cursor = get_cursor()
     if line_type == 'bait_station':
         cursor.execute("""
-            SELECT 'bait' as type, bsr.date, u.username, b.bait_station_code as code,
+            SELECT 'bait' as type, bsr.`date`, u.username, b.bait_station_code as code,
                    'Checked' as species_name, l.line_name
             FROM bait_station_records bsr
             JOIN users u ON bsr.recorded_by = u.user_id
             JOIN bait_stations b ON bsr.bait_station_code = b.bait_station_code
-            JOIN lines l ON b.line_id = l.line_id
+            JOIN `lines` l ON b.line_id = l.line_id
             WHERE l.line_id = %s
-            ORDER BY bsr.date DESC LIMIT %s
+            ORDER BY bsr.`date` DESC LIMIT %s
         """, (line_id, limit))
     else:
         cursor.execute("""
-            SELECT 'catch' as type, tc.date, u.username, t.trap_code as code,
+            SELECT 'catch' as type, tc.`date`, u.username, t.trap_code as code,
                    s.species_name, l.line_name
             FROM trap_catches tc
             JOIN users u ON tc.recorded_by = u.user_id
             JOIN traps t ON tc.trap_code = t.trap_code
-            JOIN lines l ON t.line_id = l.line_id
+            JOIN `lines` l ON t.line_id = l.line_id
             JOIN species s ON tc.species_id = s.species_id
             WHERE l.line_id = %s
-            ORDER BY tc.date DESC LIMIT %s
+            ORDER BY tc.`date` DESC LIMIT %s
         """, (line_id, limit))
     rows = cursor.fetchall()
     cursor.close()

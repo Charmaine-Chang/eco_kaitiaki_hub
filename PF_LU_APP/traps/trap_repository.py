@@ -27,7 +27,7 @@ def fetch_trap_details_simple(trap_code, group_id):
         SELECT t.*, es.equipment_status_name
         FROM traps t
         LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         WHERE t.trap_code = %s AND l.group_id = %s
     """, (trap_code, group_id))
     row = cursor.fetchone()
@@ -98,7 +98,7 @@ def fetch_retired_traps(group_id=None):
                t.latitude, t.longitude, t.status
         FROM traps t
         JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         WHERE t.status = 'inactive'
     """
     params = []
@@ -128,7 +128,7 @@ def fetch_trap_details_scoped(cursor, trap_code, group_id, is_super_admin=False)
             SELECT t.*, es.equipment_status_name, sa.storage_area_id, sa.storage_area_name
             FROM traps t
             LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
-            LEFT JOIN lines l ON t.line_id = l.line_id
+            LEFT JOIN `lines` l ON t.line_id = l.line_id
             LEFT JOIN storage_area sa ON t.storage_area_id = sa.storage_area_id
             WHERE t.trap_code = %s
         """, (trap_code,))
@@ -137,7 +137,7 @@ def fetch_trap_details_scoped(cursor, trap_code, group_id, is_super_admin=False)
             SELECT t.*, es.equipment_status_name, sa.storage_area_id, sa.storage_area_name
             FROM traps t
             LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
-            LEFT JOIN lines l ON t.line_id = l.line_id
+            LEFT JOIN `lines` l ON t.line_id = l.line_id
             LEFT JOIN storage_area sa ON t.storage_area_id = sa.storage_area_id
             WHERE t.trap_code = %s AND ((l.group_id = %s) OR (sa.group_id = %s))
         """, (trap_code, group_id, group_id))
@@ -164,7 +164,7 @@ def fetch_inventory_for_group(group_id):
                t.latitude, t.longitude, 'trap' as equip_type, t.status, es.equipment_status_name
         FROM traps t
         JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
         WHERE l.group_id = %s
         ORDER BY l.line_name, t.trap_code
@@ -176,7 +176,7 @@ def fetch_inventory_for_group(group_id):
                b.latitude, b.longitude, 'bait_station' as equip_type, b.status, es.equipment_status_name
         FROM bait_stations b
         JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-        JOIN lines l ON b.line_id = l.line_id
+        JOIN `lines` l ON b.line_id = l.line_id
         LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
         WHERE l.group_id = %s
         ORDER BY l.line_name, b.bait_station_code
@@ -212,7 +212,7 @@ def fetch_equipment_for_status_update(code, group_id):
         SELECT t.trap_code as code, t.status, es.equipment_status_name, 'traps' as table_name
         FROM traps t
         LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         WHERE t.trap_code = %s AND l.group_id = %s
     """, (code, group_id))
     row = cursor.fetchone()
@@ -224,7 +224,7 @@ def fetch_equipment_for_status_update(code, group_id):
         SELECT b.bait_station_code as code, b.status, es.equipment_status_name, 'bait_stations' as table_name
         FROM bait_stations b
         LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
-        JOIN lines l ON b.line_id = l.line_id
+        JOIN `lines` l ON b.line_id = l.line_id
         WHERE b.bait_station_code = %s AND l.group_id = %s
     """, (code, group_id))
     row = cursor.fetchone()

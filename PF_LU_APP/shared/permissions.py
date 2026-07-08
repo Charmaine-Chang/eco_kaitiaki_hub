@@ -14,7 +14,7 @@ def get_equipment_status_id(cursor, status_name):
         return row['equipment_status_id']
 
     cursor.execute(
-        "INSERT INTO equipment_status (equipment_status_name) VALUES (%s) RETURNING equipment_status_id",
+        "INSERT INTO equipment_status (equipment_status_name) VALUES (%s)",
         (status_name,),
     )
-    return cursor.fetchone()['equipment_status_id']
+    return cursor.lastrowid

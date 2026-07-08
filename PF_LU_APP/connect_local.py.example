@@ -1,9 +1,9 @@
 # Database connection configuration
-# Copy this file to connect_local.py and fill in your local PostgreSQL credentials.
+# Copy this file to connect_local.py and fill in your local MySQL credentials.
 # connect_local.py is git-ignored — never commit real credentials.
 
-dbuser = "your_username"
-dbpass = "your_password"
+dbuser = "root"
+dbpass = "521200cq"
 dbhost = "localhost"
-dbport = "5432"
-dbname = "your_db_name"
+dbport = "3306"
+dbname = "eco_kaitiaki_hub"

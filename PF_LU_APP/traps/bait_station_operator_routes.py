@@ -67,7 +67,7 @@ def add_bait_record(bait_station_code=None):
                     cursor.execute("""
                         SELECT l.group_id 
                         FROM bait_stations bs
-                        JOIN lines l ON bs.line_id = l.line_id
+                        JOIN `lines` l ON bs.line_id = l.line_id
                         WHERE bs.bait_station_code = %s
                     """, (bait_station_code,))
                     bs_row = cursor.fetchone()
@@ -134,7 +134,7 @@ def add_bait_record(bait_station_code=None):
                 if not line_id and station:
                     line_id = station['line_id']
             elif line_id:
-                cursor.execute("SELECT line_name FROM lines WHERE line_id = %s", (line_id,))
+                cursor.execute("SELECT line_name FROM `lines` WHERE line_id = %s", (line_id,))
                 line = cursor.fetchone()
                 cursor.execute("SELECT * FROM bait_stations WHERE line_id = %s AND status = 'active' ORDER BY bait_station_code", (line_id,))
                 bait_stations = cursor.fetchall()
@@ -184,12 +184,12 @@ def view_bait_records():
     try:
         with get_cursor_context() as cursor:
             if session.get('is_super_admin'):
-                cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' AND line_type = 'bait_station' ORDER BY line_name ASC")
+                cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' AND line_type = 'bait_station' ORDER BY line_name ASC")
             elif session.get('role_id') in (ROLE_COORDINATOR, ROLE_OPERATOR, ROLE_OBSERVER):
-                cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' AND line_type = 'bait_station' AND group_id = %s ORDER BY line_name ASC", (current_group_id,))
+                cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' AND line_type = 'bait_station' AND group_id = %s ORDER BY line_name ASC", (current_group_id,))
             else:
                 cursor.execute("""SELECT l.line_id, l.line_name
-                    FROM lines l 
+                    FROM `lines` l 
                     JOIN operator_lines ol ON l.line_id = ol.line_id
                     WHERE l.status = 'active' AND l.line_type = 'bait_station' AND ol.user_id = %s
                     ORDER BY l.line_name ASC""", (session['user_id'],))
@@ -205,14 +205,14 @@ def view_bait_records():
 
             line = None
             if line_filter:
-                cursor.execute("SELECT line_name FROM lines WHERE line_id = %s", (line_filter,))
+                cursor.execute("SELECT line_name FROM `lines` WHERE line_id = %s", (line_filter,))
                 line = cursor.fetchone()
 
             query = """
-                SELECT bsr.record_id, bsr.bait_station_code, bsr.date, s.species_name as target_species, 
-                       bsr.active_ingredient, bsr.formulation, bsr.concentration, 
+                SELECT bsr.record_id, bsr.bait_station_code, bsr.`date`, s.species_name as target_species,
+                       bsr.active_ingredient, bsr.formulation, bsr.concentration,
                        bsr.bait_remaining, bsr.bait_removed, bsr.bait_added, bsr.notes,
-                       COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '') as recorded_by_name, 
+                       CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as recorded_by_name,
                        bsr.recorded_by, l.line_name, bsr.updated_at,
                        bs.latitude, bs.longitude,
                        bs.status AS station_overall_status, es_bs.equipment_status_name AS station_equipment_status,
@@ -220,7 +220,7 @@ def view_bait_records():
                 FROM bait_station_records bsr
                 JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
                 LEFT JOIN equipment_status es_bs ON bs.equipment_status_id = es_bs.equipment_status_id
-                JOIN lines l ON bs.line_id = l.line_id
+                JOIN `lines` l ON bs.line_id = l.line_id
                 JOIN species s ON bsr.target_species_id = s.species_id
                 JOIN users u ON bsr.recorded_by = u.user_id
                 LEFT JOIN bait_type bt ON bsr.bait_type_id = bt.bait_type_id
@@ -243,13 +243,13 @@ def view_bait_records():
                 query += " AND bsr.target_species_id = %s"
                 params.append(target_species_filter)
             if start_date:
-                query += " AND DATE(bsr.date) >= %s"
+                query += " AND DATE(bsr.`date`) >= %s"
                 params.append(start_date)
             if end_date:
-                query += " AND DATE(bsr.date) <= %s"
+                query += " AND DATE(bsr.`date`) <= %s"
                 params.append(f"{end_date} 23:59:59")
                 
-            query += " ORDER BY bsr.date DESC"
+            query += " ORDER BY bsr.`date` DESC"
             
             cursor.execute(query, tuple(params))
             records = cursor.fetchall()
@@ -279,14 +279,14 @@ def view_bait_records():
             }
 
             # Active Stations
-            cursor.execute("SELECT COUNT(*) as count FROM bait_stations bs JOIN lines l ON bs.line_id = l.line_id WHERE (bs.status = 'active' OR bs.status IS NULL) AND l.group_id = %s", (current_group_id,))
+            cursor.execute("SELECT COUNT(*) as count FROM bait_stations bs JOIN `lines` l ON bs.line_id = l.line_id WHERE (bs.status = 'active' OR bs.status IS NULL) AND l.group_id = %s", (current_group_id,))
             stats['active_stations'] = cursor.fetchone()['count']
 
             # Maintenance Required
             maint_query = """
                 SELECT COUNT(DISTINCT bs.bait_station_code) as count 
                 FROM bait_stations bs
-                JOIN lines l ON bs.line_id = l.line_id
+                JOIN `lines` l ON bs.line_id = l.line_id
                 LEFT JOIN equipment_status es ON bs.equipment_status_id = es.equipment_status_id
                 WHERE l.group_id = %s AND (es.equipment_status_name != 'Functional' AND es.equipment_status_name IS NOT NULL)
             """
@@ -299,7 +299,7 @@ def view_bait_records():
                 FROM bait_station_records bsr
                 JOIN species s ON bsr.target_species_id = s.species_id
                 JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
-                JOIN lines l ON bs.line_id = l.line_id
+                JOIN `lines` l ON bs.line_id = l.line_id
                 WHERE l.group_id = %s
                 GROUP BY s.species_name ORDER BY count DESC
             """
@@ -358,7 +358,7 @@ def edit_bait_record(record_id):
                 SELECT l.group_id 
                 FROM bait_station_records bsr
                 JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
-                JOIN lines l ON bs.line_id = l.line_id
+                JOIN `lines` l ON bs.line_id = l.line_id
                 WHERE bsr.record_id = %s
             """, (record_id,))
             record_group = cursor.fetchone()
@@ -459,7 +459,7 @@ def edit_bait_record(record_id):
                 SELECT bsr.*, bs.line_id, l.line_name
                 FROM bait_station_records bsr
                 JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
-                JOIN lines l ON bs.line_id = l.line_id
+                JOIN `lines` l ON bs.line_id = l.line_id
                 WHERE bsr.record_id = %s
             """, (record_id,))
             bait_record = cursor.fetchone()

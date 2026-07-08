@@ -25,7 +25,7 @@ def fetch_bait_station_details_simple(station_code, group_id):
         SELECT b.*, es.equipment_status_name
         FROM bait_stations b
         LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
-        JOIN lines l ON b.line_id = l.line_id
+        JOIN `lines` l ON b.line_id = l.line_id
         WHERE b.bait_station_code = %s AND l.group_id = %s
     """, (station_code, group_id))
     row = cursor.fetchone()
@@ -100,7 +100,7 @@ def fetch_retired_bait_stations(group_id=None):
                b.latitude, b.longitude, b.status
         FROM bait_stations b
         JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-        JOIN lines l ON b.line_id = l.line_id
+        JOIN `lines` l ON b.line_id = l.line_id
         WHERE b.status = 'inactive'
     """
     params = []
@@ -135,10 +135,10 @@ def ensure_bait_station_type(type_name):
         cursor.close()
         return row['bait_station_type_id']
     cursor.execute(
-        "INSERT INTO bait_station_type (bait_station_type_name) VALUES (%s) RETURNING bait_station_type_id",
+        "INSERT INTO bait_station_type (bait_station_type_name) VALUES (%s)",
         (type_name,),
     )
-    result = cursor.fetchone()['bait_station_type_id']
+    result = cursor.lastrowid
     cursor.close()
     return result
 
@@ -150,7 +150,7 @@ def fetch_bait_station_details_scoped(cursor, bait_station_code, group_id, is_su
             SELECT b.*, es.equipment_status_name, sa.storage_area_id, sa.storage_area_name
             FROM bait_stations b
             LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
-            LEFT JOIN lines l ON b.line_id = l.line_id
+            LEFT JOIN `lines` l ON b.line_id = l.line_id
             LEFT JOIN storage_area sa ON b.storage_area_id = sa.storage_area_id
             WHERE b.bait_station_code = %s
         """, (bait_station_code,))
@@ -159,7 +159,7 @@ def fetch_bait_station_details_scoped(cursor, bait_station_code, group_id, is_su
             SELECT b.*, es.equipment_status_name, sa.storage_area_id, sa.storage_area_name
             FROM bait_stations b
             LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
-            LEFT JOIN lines l ON b.line_id = l.line_id
+            LEFT JOIN `lines` l ON b.line_id = l.line_id
             LEFT JOIN storage_area sa ON b.storage_area_id = sa.storage_area_id
             WHERE b.bait_station_code = %s AND ((l.group_id = %s) OR (sa.group_id = %s))
         """, (bait_station_code, group_id, group_id))

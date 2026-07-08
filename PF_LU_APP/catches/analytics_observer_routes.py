@@ -146,10 +146,10 @@ def download_graphs_report():
                 where_clause.append('t.line_id = %s')
                 params.append(line_id)
             if start_date:
-                where_clause.append('tc.date >= %s')
+                where_clause.append('tc.`date` >= %s')
                 params.append(start_date)
             if end_date:
-                where_clause.append('tc.date <= %s')
+                where_clause.append('tc.`date` <= %s')
                 params.append(f"{end_date} 23:59:59")
 
             where_str = " AND ".join(where_clause)
@@ -157,39 +157,39 @@ def download_graphs_report():
             cursor.execute(f"""SELECT s.species_name, COUNT(*) as count
                 FROM trap_catches tc JOIN species s ON tc.species_id = s.species_id
                 JOIN traps t ON tc.trap_code = t.trap_code
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 WHERE {where_str} GROUP BY s.species_name""", tuple(params))
             species_data = [dict(r) for r in cursor.fetchall()]
 
             cursor.execute(f"""SELECT l.line_name, COUNT(*) as count
                 FROM trap_catches tc JOIN traps t ON tc.trap_code = t.trap_code
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 WHERE {where_str} GROUP BY l.line_name""", tuple(params))
             lines_data = [dict(r) for r in cursor.fetchall()]
 
-            cursor.execute(f"""SELECT TO_CHAR(DATE(tc.date), 'YYYY-MM-DD') as catch_date, COUNT(*) as count
+            cursor.execute(f"""SELECT DATE_FORMAT(tc.`date`, '%Y-%m-%d') as catch_date, COUNT(*) as count
                 FROM trap_catches tc JOIN traps t ON tc.trap_code = t.trap_code
-                JOIN lines l ON t.line_id = l.line_id
-                WHERE {where_str} GROUP BY DATE(tc.date) ORDER BY DATE(tc.date)""", tuple(params))
+                JOIN `lines` l ON t.line_id = l.line_id
+                WHERE {where_str} GROUP BY DATE(tc.`date`) ORDER BY DATE(tc.`date`)""", tuple(params))
             dates_data = [dict(r) for r in cursor.fetchall()]
 
             total_catches = sum(d['count'] for d in species_data)
             active_lines_count = len(lines_data)
             hotspot = max(lines_data, key=lambda x: x['count'])['line_name'] if lines_data else 'N/A'
 
-            cursor.execute(f"SELECT COUNT(*) as count FROM trap_catches tc JOIN traps t ON tc.trap_code = t.trap_code JOIN lines l ON t.line_id = l.line_id WHERE {where_str}", tuple(params))
+            cursor.execute(f"SELECT COUNT(*) as count FROM trap_catches tc JOIN traps t ON tc.trap_code = t.trap_code JOIN `lines` l ON t.line_id = l.line_id WHERE {where_str}", tuple(params))
             total_records = cursor.fetchone()['count']
             success_rate = round((total_catches / total_records) * 100, 1) if total_records > 0 else 0
 
-            cursor.execute(f"""SELECT tc.date, s.species_name, t.trap_code, l.line_name, g.group_name
+            cursor.execute(f"""SELECT tc.`date`, s.species_name, t.trap_code, l.line_name, g.group_name
                 FROM trap_catches tc JOIN species s ON tc.species_id = s.species_id
                 JOIN traps t ON tc.trap_code = t.trap_code
-                JOIN lines l ON t.line_id = l.line_id
-                JOIN groups g ON l.group_id = g.group_id
-                WHERE {where_str} ORDER BY tc.date DESC LIMIT 10""", tuple(params))
+                JOIN `lines` l ON t.line_id = l.line_id
+                JOIN `groups` g ON l.group_id = g.group_id
+                WHERE {where_str} ORDER BY tc.`date` DESC LIMIT 10""", tuple(params))
             recent_catches = cursor.fetchall()
 
-            cursor.execute("SELECT group_name FROM groups WHERE group_id = %s", (current_group_id,))
+            cursor.execute("SELECT group_name FROM `groups` WHERE group_id = %s", (current_group_id,))
             g = cursor.fetchone()
             group_name = g['group_name'] if g else 'Unknown Group'
 
@@ -240,7 +240,7 @@ def trend_analytics():
             current_group_id = session.get('current_group_id')
             if current_group_id:
                 cursor.execute("""SELECT l.line_id, l.line_name
-                    FROM lines l 
+                    FROM `lines` l 
                     WHERE l.status = 'active' AND l.group_id = %s
                     ORDER BY l.line_name ASC""", (current_group_id,))
                 lines = cursor.fetchall()

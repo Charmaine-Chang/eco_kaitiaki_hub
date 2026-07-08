@@ -23,7 +23,7 @@ def admin_dashboard():
             is_global_view = not current_group_id
             is_private = False
             if current_group_id:
-                cursor.execute("SELECT group_name, visibility FROM groups WHERE group_id = %s", (current_group_id,))
+                cursor.execute("SELECT group_name, visibility FROM `groups` WHERE group_id = %s", (current_group_id,))
                 _cg = cursor.fetchone()
                 if _cg:
                     is_private = _cg['visibility'] == 'private'
@@ -34,7 +34,7 @@ def admin_dashboard():
             if is_global_view and session.get('is_super_admin'):
                 cursor.execute("""
                     SELECT g.*, u.first_name, u.last_name 
-                    FROM groups g 
+                    FROM `groups` g 
                     JOIN users u ON g.created_by = u.user_id 
                     WHERE g.status = 'pending'
                 """)
@@ -49,7 +49,7 @@ def admin_dashboard():
                     FROM group_membership gm
                     JOIN users u ON gm.user_id = u.user_id
                     JOIN roles r ON gm.role_id = r.role_id
-                    JOIN groups g ON gm.group_id = g.group_id
+                    JOIN `groups` g ON gm.group_id = g.group_id
                     WHERE gm.membership_status = 'pending'
                 """)
                 pending_members = cursor.fetchall()
@@ -59,7 +59,7 @@ def admin_dashboard():
                     SELECT rur.request_id, u.first_name, u.last_name, u.username, rur.created_at, g.group_name, rur.user_id
                     FROM role_upgrade_requests rur
                     JOIN users u ON rur.user_id = u.user_id
-                    JOIN groups g ON rur.group_id = g.group_id
+                    JOIN `groups` g ON rur.group_id = g.group_id
                     WHERE rur.status = 'pending'
                 """)
                 pending_upgrades = cursor.fetchall()
@@ -77,7 +77,7 @@ def admin_dashboard():
                         FROM group_membership gm
                         JOIN users u ON gm.user_id = u.user_id
                         JOIN roles r ON gm.role_id = r.role_id
-                        JOIN groups g ON gm.group_id = g.group_id
+                        JOIN `groups` g ON gm.group_id = g.group_id
                         WHERE gm.group_id = %s AND gm.membership_status = 'pending'
                     """, (current_group_id,))
                     pending_members = cursor.fetchall()
@@ -87,7 +87,7 @@ def admin_dashboard():
                         SELECT rur.request_id, u.first_name, u.last_name, u.username, rur.created_at, g.group_name, rur.user_id
                         FROM role_upgrade_requests rur
                         JOIN users u ON rur.user_id = u.user_id
-                        JOIN groups g ON rur.group_id = g.group_id
+                        JOIN `groups` g ON rur.group_id = g.group_id
                         WHERE rur.group_id = %s AND rur.status = 'pending'
                     """, (current_group_id,))
                     pending_upgrades = cursor.fetchall()
@@ -96,7 +96,7 @@ def admin_dashboard():
             if session.get('is_super_admin'):
                 cursor.execute("""
                     SELECT g.group_id, g.group_name, gm.role_id
-                    FROM groups g
+                    FROM `groups` g
                     LEFT JOIN group_membership gm ON g.group_id = gm.group_id AND gm.user_id = %s AND gm.membership_status = 'active'
                     WHERE g.status = 'active'
                     ORDER BY g.group_name
@@ -105,7 +105,7 @@ def admin_dashboard():
             else:
                 cursor.execute("""
                     SELECT g.group_id, g.group_name, gm.role_id
-                    FROM groups g 
+                    FROM `groups` g 
                     JOIN group_membership gm ON g.group_id = gm.group_id 
                     WHERE gm.user_id = %s AND g.status = 'active' AND gm.membership_status = 'active'
                     ORDER BY g.group_name
@@ -120,27 +120,27 @@ def admin_dashboard():
                 stats['total_traps'] = cursor.fetchone()['count']
                 cursor.execute("SELECT COUNT(*) as count FROM bait_stations WHERE status = 'active'")
                 stats['active_bait_stations'] = cursor.fetchone()['count']
-                cursor.execute("SELECT COUNT(*) as count FROM groups WHERE status = 'active'")
+                cursor.execute("SELECT COUNT(*) as count FROM `groups` WHERE status = 'active'")
                 stats['total_groups'] = cursor.fetchone()['count']
                 cursor.execute("SELECT COUNT(*) as count FROM users")
                 stats['total_users'] = cursor.fetchone()['count']
-                cursor.execute("SELECT COUNT(*) as count FROM groups WHERE status = 'pending'")
+                cursor.execute("SELECT COUNT(*) as count FROM `groups` WHERE status = 'pending'")
                 stats['pending_tasks'] = cursor.fetchone()['count']
-                cursor.execute("SELECT COUNT(*) as count FROM lines WHERE status = 'active'")
+                cursor.execute("SELECT COUNT(*) as count FROM `lines` WHERE status = 'active'")
                 stats['total_active_lines'] = cursor.fetchone()['count']
             else:
                 if current_group_id:
                     cursor.execute("""
                         SELECT COUNT(*) as count FROM traps 
-                        WHERE line_id IN (SELECT line_id FROM lines WHERE group_id = %s) AND status = 'active'
+                        WHERE line_id IN (SELECT line_id FROM `lines` WHERE group_id = %s) AND status = 'active'
                     """, (current_group_id,))
                     stats['total_traps'] = cursor.fetchone()['count']
                     cursor.execute("""
                         SELECT COUNT(*) as count FROM bait_stations 
-                        WHERE line_id IN (SELECT line_id FROM lines WHERE group_id = %s) AND status = 'active'
+                        WHERE line_id IN (SELECT line_id FROM `lines` WHERE group_id = %s) AND status = 'active'
                     """, (current_group_id,))
                     stats['active_bait_stations'] = cursor.fetchone()['count']
-                    cursor.execute("SELECT COUNT(*) as count FROM lines WHERE group_id = %s AND status = 'active'", (current_group_id,))
+                    cursor.execute("SELECT COUNT(*) as count FROM `lines` WHERE group_id = %s AND status = 'active'", (current_group_id,))
                     stats['total_active_lines'] = cursor.fetchone()['count']
                 else:
                     stats['total_traps'] = 0
@@ -171,12 +171,12 @@ def admin_dashboard():
             recent_activity = []
             try:
                 act_query = """
-                    SELECT 'catch' as type, tc.date as timestamp, u.username, t.trap_code, s.species_name, g.group_name
+                    SELECT 'catch' as type, tc.`date` as timestamp, u.username, t.trap_code, s.species_name, g.group_name
                     FROM trap_catches tc
                     JOIN users u ON tc.recorded_by = u.user_id
                     JOIN traps t ON tc.trap_code = t.trap_code
-                    JOIN lines l ON t.line_id = l.line_id
-                    JOIN groups g ON l.group_id = g.group_id
+                    JOIN `lines` l ON t.line_id = l.line_id
+                    JOIN `groups` g ON l.group_id = g.group_id
                     LEFT JOIN species s ON tc.species_id = s.species_id
                     WHERE 1=1
                 """
@@ -184,7 +184,7 @@ def admin_dashboard():
                 if not session.get('is_super_admin'):
                     act_query += " AND g.group_id = %s"
                     act_params.append(current_group_id)
-                act_query += " ORDER BY tc.date DESC LIMIT 10"
+                act_query += " ORDER BY tc.`date` DESC LIMIT 10"
                 cursor.execute(act_query, tuple(act_params))
                 recent_activity = cursor.fetchall()
             except Exception as act_err:
@@ -197,7 +197,7 @@ def admin_dashboard():
             group_longitude = None
             if current_group_id:
                 try:
-                    cursor.execute("SELECT boundary_geojson, latitude, longitude FROM groups WHERE group_id = %s", (current_group_id,))
+                    cursor.execute("SELECT boundary_geojson, latitude, longitude FROM `groups` WHERE group_id = %s", (current_group_id,))
                     grp = cursor.fetchone()
                     if grp:
                         boundary_geojson = grp.get('boundary_geojson')
@@ -216,7 +216,7 @@ def admin_dashboard():
                 try:
                     cursor.execute("""
                         SELECT group_name, boundary_geojson, latitude, longitude
-                        FROM groups
+                        FROM `groups`
                         WHERE status = 'active' AND boundary_geojson IS NOT NULL
                     """)
                     all_groups_boundaries = cursor.fetchall()
@@ -276,11 +276,11 @@ def approve_group(group_id):
     try:
         conn = get_db()
         with get_cursor_context() as cursor:
-            cursor.execute("SELECT created_by, group_name FROM groups WHERE group_id = %s", (group_id,))
+            cursor.execute("SELECT created_by, group_name FROM `groups` WHERE group_id = %s", (group_id,))
             group = cursor.fetchone()
             
             if group:
-                cursor.execute("UPDATE groups SET status = 'active' WHERE group_id = %s", (group_id,))
+                cursor.execute("UPDATE `groups` SET status = 'active' WHERE group_id = %s", (group_id,))
                 
                 # Ensure the creator is an active coordinator for the group
                 cursor.execute("SELECT 1 FROM group_membership WHERE user_id = %s AND group_id = %s", (group['created_by'], group_id))
@@ -315,7 +315,7 @@ def reject_group(group_id):
         conn = get_db()
         with get_cursor_context() as cursor:
             # Mark as rejected or delete
-            cursor.execute("UPDATE groups SET status = 'rejected' WHERE group_id = %s", (group_id,))
+            cursor.execute("UPDATE `groups` SET status = 'rejected' WHERE group_id = %s", (group_id,))
             conn.commit()
             flash("Group application rejected.", "success")
     except Exception as e:

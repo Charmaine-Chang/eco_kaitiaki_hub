@@ -77,7 +77,7 @@ def create_app(test_config=None):
                 cur.execute("""
                     SELECT gm.group_id, g.group_name, g.primary_color, gm.role_id, r.role_name
                     FROM group_membership gm
-                    JOIN groups g ON gm.group_id = g.group_id
+                    JOIN `groups` g ON gm.group_id = g.group_id
                     JOIN roles r ON gm.role_id = r.role_id
                     WHERE gm.user_id = %s AND gm.membership_status = 'active' AND g.status = 'active'
                     ORDER BY g.group_name ASC
@@ -123,7 +123,7 @@ def create_app(test_config=None):
                 pass
             cur = get_cursor()
             try:
-                cur.execute("SELECT boundary_geojson FROM groups WHERE group_id = %s", (session['current_group_id'],))
+                cur.execute("SELECT boundary_geojson FROM `groups` WHERE group_id = %s", (session['current_group_id'],))
                 row = cur.fetchone()
                 if row:
                     boundary_geojson = row.get('boundary_geojson')

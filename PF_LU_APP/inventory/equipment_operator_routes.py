@@ -79,7 +79,7 @@ def edit_trap(trap_code):
                 lng = None
 
                 if line_id:
-                    cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (line_id,))
+                    cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (line_id,))
                     new_line = cursor.fetchone()
                     if not new_line or str(new_line['group_id']) != str(session.get('current_group_id')):
                         flash("Unauthorized line assignment.", "danger")
@@ -196,7 +196,7 @@ def edit_bait_station(bait_station_code):
                 lng = None
 
                 if line_id:
-                    cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (line_id,))
+                    cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (line_id,))
                     new_line = cursor.fetchone()
                     if not new_line or str(new_line['group_id']) != str(session.get('current_group_id')):
                         flash("Unauthorized line assignment.", "danger")
@@ -274,7 +274,7 @@ def action_retire_trap(trap_code):
             cursor.execute("""
                 SELECT l.group_id
                 FROM traps t
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 WHERE t.trap_code = %s
             """, (trap_code,))
             res = cursor.fetchone()
@@ -301,7 +301,7 @@ def action_retire_bait_station(bait_station_code):
             cursor.execute("""
                 SELECT l.group_id
                 FROM bait_stations b
-                JOIN lines l ON b.line_id = l.line_id
+                JOIN `lines` l ON b.line_id = l.line_id
                 WHERE b.bait_station_code = %s
             """, (bait_station_code,))
             res = cursor.fetchone()

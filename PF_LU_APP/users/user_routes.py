@@ -249,13 +249,13 @@ def user_detail(user_id):
             all_groups = []
             user_memberships = []
             if session.get('is_super_admin'):
-                cur.execute("SELECT group_id, group_name FROM groups WHERE status = 'active' ORDER BY group_name")
+                cur.execute("SELECT group_id, group_name FROM `groups` WHERE status = 'active' ORDER BY group_name")
                 all_groups = cur.fetchall()
                 
                 cur.execute("""
                     SELECT gm.group_id, g.group_name, r.role_name, gm.membership_status, gm.role_id, gm.joined_at
                     FROM group_membership gm
-                    JOIN groups g ON gm.group_id = g.group_id
+                    JOIN `groups` g ON gm.group_id = g.group_id
                     JOIN roles r ON gm.role_id = r.role_id
                     WHERE gm.user_id = %s
                     ORDER BY g.group_name
@@ -265,7 +265,7 @@ def user_detail(user_id):
                 cur.execute("""
                     SELECT gm.group_id, g.group_name, r.role_name, gm.membership_status, gm.role_id, gm.joined_at
                     FROM group_membership gm
-                    JOIN groups g ON gm.group_id = g.group_id
+                    JOIN `groups` g ON gm.group_id = g.group_id
                     JOIN roles r ON gm.role_id = r.role_id
                     WHERE gm.user_id = %s AND gm.group_id = %s
                     ORDER BY g.group_name
@@ -274,7 +274,7 @@ def user_detail(user_id):
 
             current_group_name = None
             if current_group_id:
-                cur.execute("SELECT group_name FROM groups WHERE group_id = %s", (current_group_id,))
+                cur.execute("SELECT group_name FROM `groups` WHERE group_id = %s", (current_group_id,))
                 res = cur.fetchone()
                 if res:
                     current_group_name = res['group_name']
@@ -346,7 +346,7 @@ def remove_member_from_group(user_id, group_id):
             cursor.execute("""
                 SELECT g.group_name 
                 FROM group_membership gm
-                JOIN groups g ON gm.group_id = g.group_id
+                JOIN `groups` g ON gm.group_id = g.group_id
                 WHERE gm.user_id = %s AND gm.group_id = %s
             """, (user_id, group_id))
             membership = cursor.fetchone()
@@ -371,7 +371,7 @@ def remove_member_from_group(user_id, group_id):
             cursor.execute("""
                 DELETE FROM operator_lines 
                 WHERE user_id = %s AND line_id IN (
-                    SELECT line_id FROM lines WHERE group_id = %s
+                    SELECT line_id FROM `lines` WHERE group_id = %s
                 )
             """, (user_id, group_id))
 

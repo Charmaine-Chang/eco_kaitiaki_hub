@@ -144,7 +144,7 @@ def add_catch(trap_code=None):
                 if not line_id and trap:
                     line_id = trap['line_id']
             elif line_id:
-                cursor.execute("SELECT line_name FROM lines WHERE line_id = %s", (line_id,))
+                cursor.execute("SELECT line_name FROM `lines` WHERE line_id = %s", (line_id,))
                 line = cursor.fetchone()
                 cursor.execute("SELECT * FROM traps WHERE line_id = %s AND status = 'active' ORDER BY trap_code", (line_id,))
                 traps = cursor.fetchall()
@@ -244,7 +244,7 @@ def edit_catch(catches_id):
                 SELECT l.group_id 
                 FROM trap_catches tc
                 JOIN traps t ON tc.trap_code = t.trap_code
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 WHERE tc.catches_id = %s
             """, (catches_id,))
             record_group = cursor.fetchone()
@@ -366,7 +366,7 @@ def edit_catch(catches_id):
                 SELECT tc.*, t.line_id, l.line_name, tc.updated_at
                 FROM trap_catches tc
                 JOIN traps t ON tc.trap_code = t.trap_code
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 WHERE tc.catches_id = %s
             """, (catches_id,))
             catch = cursor.fetchone()

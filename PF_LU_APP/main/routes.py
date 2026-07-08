@@ -12,7 +12,7 @@ def home():
         # Active groups with geographic info
         cursor.execute("""
             SELECT group_id, group_name, description, geographic_area, visibility
-            FROM groups
+            FROM `groups`
             WHERE status = 'active' AND group_name != 'System Management'
             ORDER BY group_name ASC
         """)
@@ -42,7 +42,7 @@ def find_group():
         cursor = get_cursor()
         cursor.execute("""
             SELECT group_id, group_name, description, geographic_area, visibility
-            FROM groups
+            FROM `groups`
             WHERE status = 'active' AND group_name != 'System Management'
             ORDER BY group_name ASC
         """)
@@ -75,7 +75,7 @@ def search():
         search_pattern = f"%{query}%"
         
         # Search lines
-        cursor.execute("SELECT * FROM lines WHERE line_name ILIKE %s ORDER BY line_name", (search_pattern,))
+        cursor.execute("SELECT * FROM `lines` WHERE line_name LIKE %s ORDER BY line_name", (search_pattern,))
         found_lines = cursor.fetchall()
         
         # Search traps
@@ -83,8 +83,8 @@ def search():
             SELECT t.trap_code, tt.trap_type_name, l.line_id, l.line_name, t.latitude, t.longitude 
             FROM traps t 
             JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-            JOIN lines l ON t.line_id = l.line_id
-            WHERE t.trap_code ILIKE %s OR tt.trap_type_name ILIKE %s
+            JOIN `lines` l ON t.line_id = l.line_id
+            WHERE t.trap_code LIKE %s OR tt.trap_type_name LIKE %s
             ORDER BY t.trap_code
         """, (search_pattern, search_pattern))
         found_traps = cursor.fetchall()
@@ -130,7 +130,7 @@ def knowledge_hub():
         params = []
         
         if query:
-            base_sql += " AND (kh.title ILIKE %s OR kh.content ILIKE %s OR kh.category ILIKE %s)"
+            base_sql += " AND (kh.title LIKE %s OR kh.content LIKE %s OR kh.category LIKE %s)"
             search_pattern = f"%{query}%"
             params.extend([search_pattern, search_pattern, search_pattern])
             

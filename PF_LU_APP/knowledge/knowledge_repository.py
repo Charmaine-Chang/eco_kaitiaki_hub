@@ -8,7 +8,7 @@ def check_active_member(user_id, group_id):
     cursor = get_cursor()
     cursor.execute("""
         SELECT 1 FROM group_membership gm
-        JOIN groups g ON g.group_id = gm.group_id
+        JOIN `groups` g ON g.group_id = gm.group_id
         WHERE gm.user_id = %s AND gm.group_id = %s
         AND gm.membership_status = 'active' AND g.status = 'active'
     """, (user_id, group_id))
@@ -22,7 +22,7 @@ def fetch_entry(entry_id, group_id):
     cursor = get_cursor()
     cursor.execute("""
         SELECT k.*, u.username AS author_username,
-               TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS author_display
+               TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) AS author_display
         FROM knowledge_hub k
         JOIN users u ON u.user_id = k.user_id
         WHERE k.entry_id = %s AND k.group_id = %s
@@ -35,7 +35,7 @@ def fetch_entry(entry_id, group_id):
 def fetch_group_name(group_id):
     """Get group name."""
     cursor = get_cursor()
-    cursor.execute("SELECT group_name FROM groups WHERE group_id = %s", (group_id,))
+    cursor.execute("SELECT group_name FROM `groups` WHERE group_id = %s", (group_id,))
     row = cursor.fetchone()
     cursor.close()
     return row['group_name'] if row else None
@@ -111,7 +111,7 @@ def fetch_user_submissions(user_id):
         SELECT kh.entry_id, kh.title, kh.category, kh.content, kh.status,
                kh.created_at, g.group_name
         FROM knowledge_hub kh
-        JOIN groups g ON kh.group_id = g.group_id
+        JOIN `groups` g ON kh.group_id = g.group_id
         WHERE kh.user_id = %s
         ORDER BY kh.created_at DESC
     """, (user_id,))

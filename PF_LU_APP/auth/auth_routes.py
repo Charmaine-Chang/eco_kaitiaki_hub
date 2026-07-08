@@ -2,9 +2,8 @@ import os
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
 from PF_LU_APP import bcrypt
-from ..db import get_db, get_cursor, get_cursor_context
+from ..db import get_db, get_cursor, get_cursor_context, DatabaseError, IntegrityError
 import re
-import psycopg2
 from ..validators import is_valid_email
 from PF_LU_APP.constants import ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR, ROLE_OBSERVER
 from PF_LU_APP.shared.decorators import login_required
@@ -111,7 +110,7 @@ def login():
                     cur.execute("""
                         SELECT gm.group_id, g.group_name, gm.role_id, r.role_name
                         FROM group_membership gm
-                        JOIN groups g ON gm.group_id = g.group_id
+                        JOIN `groups` g ON gm.group_id = g.group_id
                         JOIN roles r ON gm.role_id = r.role_id
                         WHERE gm.user_id = %s AND gm.membership_status = 'active'
                         AND g.status = 'active'
@@ -141,13 +140,13 @@ def login():
                         
                         # Fetch branding
                         try:
-                            cur.execute("SELECT primary_color FROM groups WHERE group_id = %s", (m['group_id'],))
+                            cur.execute("SELECT primary_color FROM `groups` WHERE group_id = %s", (m['group_id'],))
                             g_data = cur.fetchone()
                             if g_data and g_data['primary_color']:
                                 session['current_group_color'] = g_data['primary_color']
                             else:
                                 session.pop('current_group_color', None)
-                        except psycopg2.DatabaseError as e:
+                        except DatabaseError as e:
                             current_app.logger.error(f"Branding fetch error: {e}")
                             session.pop('current_group_color', None)
                         
@@ -160,7 +159,7 @@ def login():
                     return redirect(url_for('main.home'))
 
                 flash('Login was unsuccessful. Incorrect username or password.', 'danger')
-        except psycopg2.DatabaseError as e:
+        except DatabaseError as e:
             current_app.logger.error(f"Login database error: {e}")
             flash('An error occurred during login. Please try again.', 'danger')
         except Exception as e:
@@ -183,7 +182,7 @@ def select_group():
                 cur.execute("""
                     SELECT gm.group_id, g.group_name, gm.role_id
                     FROM group_membership gm
-                    JOIN groups g ON gm.group_id = g.group_id
+                    JOIN `groups` g ON gm.group_id = g.group_id
                     WHERE gm.user_id = %s AND gm.group_id = %s 
                     AND gm.membership_status = 'active' AND g.status = 'active'
                 """, (session['user_id'], group_id))
@@ -196,13 +195,13 @@ def select_group():
                     
                     # Fetch group branding if exists (color)
                     try:
-                        cur.execute("SELECT primary_color FROM groups WHERE group_id = %s", (group_id,))
+                        cur.execute("SELECT primary_color FROM `groups` WHERE group_id = %s", (group_id,))
                         g_data = cur.fetchone()
                         if g_data and g_data['primary_color']:
                             session['current_group_color'] = g_data['primary_color']
                         else:
                             session.pop('current_group_color', None)
-                    except psycopg2.DatabaseError as e:
+                    except DatabaseError as e:
                         current_app.logger.error(f"Branding fetch error (column might be missing): {e}")
                         session.pop('current_group_color', None)
                         
@@ -212,7 +211,7 @@ def select_group():
                     return redirect(url_for('observer.observer_dashboard'))
                 
                 flash("Invalid group selection.", "danger")
-        except psycopg2.DatabaseError as e:
+        except DatabaseError as e:
             current_app.logger.error(f"Select group post error: {e}")
             flash("An error occurred.", "danger")
         
@@ -222,13 +221,13 @@ def select_group():
             cur.execute("""
                 SELECT gm.group_id, g.group_name, g.description, r.role_name, gm.role_id
                 FROM group_membership gm
-                JOIN groups g ON gm.group_id = g.group_id
+                JOIN `groups` g ON gm.group_id = g.group_id
                 JOIN roles r ON gm.role_id = r.role_id
                 WHERE gm.user_id = %s AND gm.membership_status = 'active' AND g.status = 'active'
                 ORDER BY CASE WHEN g.group_name = 'System Management' THEN 0 ELSE 1 END, g.group_name ASC
             """, (session['user_id'],))
             memberships = cur.fetchall()
-    except psycopg2.DatabaseError as e:
+    except DatabaseError as e:
         current_app.logger.error(f"Select group get error: {e}")
         memberships = []
         flash("Could not fetch groups.", "danger")
@@ -243,7 +242,7 @@ def enter_group(group_id):
             cur.execute("""
                 SELECT gm.group_id, g.group_name, gm.role_id, g.primary_color
                 FROM group_membership gm
-                JOIN groups g ON gm.group_id = g.group_id
+                JOIN `groups` g ON gm.group_id = g.group_id
                 WHERE gm.user_id = %s AND gm.group_id = %s 
                 AND gm.membership_status = 'active' AND g.status = 'active'
             """, (session['user_id'], group_id))
@@ -261,7 +260,7 @@ def enter_group(group_id):
                 if membership['role_id'] in (ROLE_SUPER_ADMIN, ROLE_COORDINATOR): return redirect(url_for('admin.admin_dashboard'))
                 if membership['role_id'] == ROLE_OPERATOR: return redirect(url_for('operator.operator_dashboard'))
                 return redirect(url_for('observer.observer_dashboard'))
-    except psycopg2.DatabaseError as e:
+    except DatabaseError as e:
         current_app.logger.error(f"Enter group error: {e}")
         
     flash("Unauthorized or invalid group.", "danger")
@@ -316,7 +315,7 @@ def profile():
                         """, (first_name, last_name, email, phone, emergency_contact, session['user_id']))
                         get_db().commit()
                         flash("Profile updated successfully!", "success")
-                    except psycopg2.IntegrityError as e:
+                    except IntegrityError as e:
                         get_db().rollback()
                         current_app.logger.error(f"Profile update integrity error: {e}")
                         flash("Email already in use!", "danger")
@@ -369,7 +368,7 @@ def profile():
                         flash("Password updated successfully!", "success")
                         
                     return redirect(url_for('auth.profile'))
-    except psycopg2.DatabaseError as e:
+    except DatabaseError as e:
         current_app.logger.error(f"Profile error: {e}")
         flash("An error occurred loading your profile.", "danger")
         return redirect(url_for('main.home'))
@@ -387,7 +386,7 @@ def my_groups():
                 SELECT g.group_id, g.group_name, g.description, g.geographic_area,
                        g.visibility, g.status, g.branding_image, g.primary_color,
                        gm.membership_status, r.role_name
-                FROM groups g
+                FROM `groups` g
                 JOIN group_membership gm ON g.group_id = gm.group_id
                 JOIN roles r ON gm.role_id = r.role_id
                 WHERE gm.user_id = %s
@@ -399,12 +398,12 @@ def my_groups():
             cur.execute("""
                 SELECT group_id, group_name, description, geographic_area,
                        visibility, status, created_at
-                FROM groups
+                FROM `groups`
                 WHERE created_by = %s AND status = 'pending'
                 ORDER BY created_at DESC
             """, (session['user_id'],))
             pending_applications = cur.fetchall()
-    except psycopg2.DatabaseError as e:
+    except DatabaseError as e:
         current_app.logger.error(f"My groups error: {e}")
         memberships = []
         pending_applications = []
@@ -450,7 +449,7 @@ def apply_group():
                 description += f"Contact Email: {contact_email}"
 
                 cur.execute("""
-                    INSERT INTO groups
+                    INSERT INTO `groups`
                         (group_name, description, geographic_area, visibility, created_by, status)
                     VALUES (%s, %s, %s, %s, %s, 'pending')
                 """, (group_name, description, geographic_area, visibility, session['user_id']))
@@ -459,13 +458,13 @@ def apply_group():
                 flash(f'Your application to create "{group_name}" has been submitted and is pending review.',
                       "success")
                 return redirect(url_for('auth.my_groups'))
-        except psycopg2.IntegrityError as e:
+        except IntegrityError as e:
             get_db().rollback()
             current_app.logger.error(f"Apply group integrity error: {e}")
             flash(f'A group named "{group_name}" may already exist. Please choose a different name.',
                   "danger")
             return render_template('auth/apply_group.html', form_data=request.form)
-        except psycopg2.DatabaseError as e:
+        except DatabaseError as e:
             get_db().rollback()
             current_app.logger.error(f"Apply group error: {e}")
             flash("An error occurred during application submission.", "danger")
@@ -479,7 +478,7 @@ def join_group(group_id):
     try:
         with get_cursor_context() as cur:
             # Check group exists and is active
-            cur.execute("SELECT group_id, group_name, visibility FROM groups WHERE group_id = %s AND status = 'active'",
+            cur.execute("SELECT group_id, group_name, visibility FROM `groups` WHERE group_id = %s AND status = 'active'",
                         (group_id,))
             group = cur.fetchone()
             if not group:
@@ -514,7 +513,7 @@ def join_group(group_id):
                 flash(f'Your request to join "{group["group_name"]}" has been submitted and is pending approval by the Group Coordinator.', "success")
             
             return redirect(url_for('main.home'))
-    except psycopg2.DatabaseError as e:
+    except DatabaseError as e:
         current_app.logger.error(f"Join group error: {e}")
         flash("An error occurred trying to join the group.", "danger")
         return redirect(url_for('main.home'))
@@ -540,15 +539,14 @@ def apply_coordinator(group_id):
             
             # Create request
             cur.execute("""
-                INSERT INTO role_upgrade_requests (user_id, group_id, requested_role_id, status)
+                INSERT IGNORE INTO role_upgrade_requests (user_id, group_id, requested_role_id, status)
                 VALUES (%s, %s, %s, %s)
-                ON CONFLICT (user_id, group_id, requested_role_id, status) DO NOTHING
             """, (user_id, group_id, 2, 'pending'))
             
             get_db().commit()
             flash("Success! Your application to become a Group Coordinator has been submitted and is now awaiting review.", "success")
             
-    except psycopg2.DatabaseError as e:
+    except DatabaseError as e:
         current_app.logger.error(f"Error applying for coordinator: {e}")
         flash("It looks like you have already applied or an error occurred. Please check your status later.", "warning")
         

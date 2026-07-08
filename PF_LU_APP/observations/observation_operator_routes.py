@@ -9,7 +9,7 @@ from PF_LU_APP.shared.decorators import roles_required
 def add_observation():
     try:
         with get_cursor_context() as cursor:
-            cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' ORDER BY line_name ASC")
+            cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' ORDER BY line_name ASC")
             active_lines = cursor.fetchall()
     except Exception as e:
         current_app.logger.exception(f"Error fetching lines: {e}")
@@ -56,7 +56,7 @@ def view_observations():
                        l.line_name AS related_line, u.username AS added_by, n.created_at
                 FROM observation_notes n
                 LEFT JOIN users u ON n.user_id = u.user_id
-                LEFT JOIN lines l ON n.related_line_id = l.line_id
+                LEFT JOIN `lines` l ON n.related_line_id = l.line_id
                 ORDER BY n.created_at DESC
             ''')
             observations = cursor.fetchall()
@@ -82,7 +82,7 @@ def edit_observation(note_id):
                 flash("You do not have permission to edit this note.", "danger")
                 return redirect(url_for('operator.operator_dashboard'))
 
-            cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' ORDER BY line_name ASC")
+            cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' ORDER BY line_name ASC")
             active_lines = cursor.fetchall()
 
             if request.method == 'POST':

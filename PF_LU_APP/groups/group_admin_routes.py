@@ -17,7 +17,7 @@ def manage_groups():
                          JOIN users u2 ON gm.user_id = u2.user_id 
                          WHERE gm.group_id = g.group_id AND gm.role_id = {ROLE_COORDINATOR} AND gm.membership_status = 'active'
                          LIMIT 1) as coordinator_username
-                FROM groups g 
+                FROM `groups` g
                 LEFT JOIN users u ON g.created_by = u.user_id 
                 ORDER BY g.created_at DESC
             """)
@@ -72,7 +72,7 @@ def edit_group(group_id):
         try:
             with get_cursor_context() as cursor:
                 # Concurrency check: verify if another user has updated the boundary in the meantime
-                cursor.execute("SELECT boundary_geojson FROM groups WHERE group_id = %s", (group_id,))
+                cursor.execute("SELECT boundary_geojson FROM `groups` WHERE group_id = %s", (group_id,))
                 current_group = cursor.fetchone()
                 if not current_group:
                     flash("Group not found.", "danger")
@@ -110,7 +110,7 @@ def edit_group(group_id):
 
                     try:
                         cursor.execute("""
-                            UPDATE groups 
+                            UPDATE `groups`
                             SET visibility = %s, geographic_area = %s, region = %s,
                                 latitude = %s, longitude = %s, boundary_geojson = %s
                             WHERE group_id = %s
@@ -168,7 +168,7 @@ def edit_group(group_id):
 
                 try:
                     cursor.execute("""
-                        UPDATE groups 
+                        UPDATE `groups`
                         SET group_name = %s, description = %s, geographic_area = %s, region = %s,
                             branding_image = %s, visibility = %s, status = %s,
                             primary_color = %s, latitude = %s, longitude = %s, boundary_geojson = %s
@@ -206,7 +206,7 @@ def edit_group(group_id):
 
     try:
         with get_cursor_context() as cursor:
-            cursor.execute("SELECT * FROM groups WHERE group_id = %s", (group_id,))
+            cursor.execute("SELECT * FROM `groups` WHERE group_id = %s", (group_id,))
             group = cursor.fetchone()
             
             # Fetch current coordinator
@@ -248,12 +248,12 @@ def approve_member(membership_id):
         with get_cursor_context() as cursor:
             # Get group visibility
             if current_group_id:
-                cursor.execute("SELECT visibility FROM groups WHERE group_id = %s", (current_group_id,))
+                cursor.execute("SELECT visibility FROM `groups` WHERE group_id = %s", (current_group_id,))
                 group = cursor.fetchone()
             else:
                 cursor.execute("""
                     SELECT g.visibility, g.group_id 
-                    FROM groups g
+                    FROM `groups` g
                     JOIN group_membership gm ON g.group_id = gm.group_id
                     WHERE gm.membership_id = %s
                 """, (membership_id,))
@@ -304,12 +304,12 @@ def reject_member(membership_id):
         with get_cursor_context() as cursor:
             # Get group visibility
             if current_group_id:
-                cursor.execute("SELECT visibility FROM groups WHERE group_id = %s", (current_group_id,))
+                cursor.execute("SELECT visibility FROM `groups` WHERE group_id = %s", (current_group_id,))
                 group = cursor.fetchone()
             else:
                 cursor.execute("""
                     SELECT g.visibility, g.group_id 
-                    FROM groups g
+                    FROM `groups` g
                     JOIN group_membership gm ON g.group_id = gm.group_id
                     WHERE gm.membership_id = %s
                 """, (membership_id,))
@@ -363,13 +363,12 @@ def create_group():
             with get_cursor_context() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO groups (group_name, description, visibility, created_by, status, branding_image)
+                    INSERT INTO `groups` (group_name, description, visibility, created_by, status, branding_image)
                     VALUES (%s, %s, %s, %s, 'active', %s)
-                    RETURNING group_id
                     """,
                     (group_name, description, visibility.lower(), session['user_id'], branding_image),
                 )
-                new_group_id = cursor.fetchone()['group_id']
+                new_group_id = cursor.lastrowid
 
                 cursor.execute(
                     """
@@ -406,7 +405,7 @@ def delete_group(group_id):
         conn = get_db()
         with get_cursor_context() as cursor:
             # Check if group exists
-            cursor.execute("SELECT group_name FROM groups WHERE group_id = %s", (group_id,))
+            cursor.execute("SELECT group_name FROM `groups` WHERE group_id = %s", (group_id,))
             group = cursor.fetchone()
             
             if not group:
@@ -414,7 +413,7 @@ def delete_group(group_id):
                 return redirect(url_for('admin.manage_groups'))
                 
             # Delete the group (cascading deletes will handle lines, traps, memberships, etc.)
-            cursor.execute("DELETE FROM groups WHERE group_id = %s", (group_id,))
+            cursor.execute("DELETE FROM `groups` WHERE group_id = %s", (group_id,))
             conn.commit()
             
             flash(f"Group '{group['group_name']}' and all its associated data have been permanently deleted.", "success")

@@ -52,9 +52,9 @@ def fetch_catches(session, line_filter=None, species_filter=None,
     is_super_admin = session.get('is_super_admin')
 
     if is_super_admin:
-        cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' ORDER BY line_name ASC")
+        cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' ORDER BY line_name ASC")
     else:
-        cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' AND group_id = %s ORDER BY line_name ASC", (current_group_id,))
+        cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' AND group_id = %s ORDER BY line_name ASC", (current_group_id,))
     all_lines = cursor.fetchall()
 
     cursor.execute("SELECT * FROM species ORDER BY species_name ASC")
@@ -62,7 +62,7 @@ def fetch_catches(session, line_filter=None, species_filter=None,
 
     line = None
     if line_filter:
-        cursor.execute("SELECT line_name FROM lines WHERE line_id = %s", (line_filter,))
+        cursor.execute("SELECT line_name FROM `lines` WHERE line_id = %s", (line_filter,))
         line = cursor.fetchone()
 
     extra = []
@@ -71,31 +71,31 @@ def fetch_catches(session, line_filter=None, species_filter=None,
     if species_filter:
         extra.append(('tc.species_id = %s', species_filter))
     if start_date:
-        extra.append(('DATE(tc.date) >= %s', start_date))
+        extra.append(('DATE(tc.`date`) >= %s', start_date))
     if end_date:
-        extra.append(('DATE(tc.date) <= %s', f"{end_date} 23:59:59"))
+        extra.append(('DATE(tc.`date`) <= %s', f"{end_date} 23:59:59"))
 
     where_str, params = _build_catches_where(session, extra)
 
     updated_col = ", tc.updated_at" if include_updated_at else ""
     query = f"""
-        SELECT tc.catches_id, tc.trap_code, tc.date, s.species_name, tc.sex, tc.maturity,
+        SELECT tc.catches_id, tc.trap_code, tc.`date`, s.species_name, tc.sex, tc.maturity,
                ts.status_name as trap_status, tc.rebaited, b.bait_type_name,
                cond.trap_condition_name as trap_condition, tc.strikes, tc.note,
-               COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '') as recorded_by_name,
+               CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as recorded_by_name,
                tc.recorded_by, l.line_name, t.latitude, t.longitude{updated_col},
                t.status AS trap_overall_status, es_t.equipment_status_name AS trap_equipment_status
         FROM trap_catches tc
         JOIN traps t ON tc.trap_code = t.trap_code
         LEFT JOIN equipment_status es_t ON t.equipment_status_id = es_t.equipment_status_id
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         JOIN species s ON tc.species_id = s.species_id
         JOIN trap_status ts ON tc.trap_status_id = ts.trap_status_id
         LEFT JOIN bait_type b ON tc.bait_type_id = b.bait_type_id
         JOIN trap_condition cond ON tc.trap_condition_id = cond.trap_condition_id
         JOIN users u ON tc.recorded_by = u.user_id
         WHERE {where_str}
-        ORDER BY tc.date DESC
+        ORDER BY tc.`date` DESC
     """
     cursor.execute(query, params)
     catches = cursor.fetchall()
@@ -131,7 +131,7 @@ def fetch_catches_kpis(session):
     if is_super_admin:
         cursor.execute("SELECT COUNT(*) as count FROM traps WHERE status = 'active'")
     elif role_id == ROLE_COORDINATOR:
-        cursor.execute("SELECT COUNT(*) as count FROM traps WHERE status = 'active' AND line_id IN (SELECT line_id FROM lines WHERE group_id = %s)", (current_group_id,))
+        cursor.execute("SELECT COUNT(*) as count FROM traps WHERE status = 'active' AND line_id IN (SELECT line_id FROM `lines` WHERE group_id = %s)", (current_group_id,))
     else:
         cursor.execute("SELECT COUNT(*) as count FROM traps WHERE status = 'active' AND line_id IN (SELECT line_id FROM operator_lines WHERE user_id = %s)", (session.get('user_id'),))
     stats['active_traps'] = cursor.fetchone()['count']
@@ -141,13 +141,13 @@ def fetch_catches_kpis(session):
         FROM traps t
         JOIN trap_catches tc ON t.trap_code = tc.trap_code
         WHERE tc.trap_condition_id IN (SELECT trap_condition_id FROM trap_condition WHERE trap_condition_name != 'Good')
-        AND tc.date = (SELECT MAX(date) FROM trap_catches WHERE trap_code = t.trap_code)
+        AND tc.date = (SELECT MAX(`date`) FROM trap_catches WHERE trap_code = t.trap_code)
     """
     maint_params = []
     if is_super_admin:
         pass
     elif role_id == ROLE_COORDINATOR:
-        maint_query += " AND t.line_id IN (SELECT line_id FROM lines WHERE group_id = %s)"
+        maint_query += " AND t.line_id IN (SELECT line_id FROM `lines` WHERE group_id = %s)"
         maint_params.append(current_group_id)
     else:
         maint_query += " AND t.line_id IN (SELECT line_id FROM operator_lines WHERE user_id = %s)"
@@ -172,27 +172,27 @@ def fetch_catches_for_csv(session, line_filter=None, species_filter=None,
     if species_filter:
         extra.append(('tc.species_id = %s', species_filter))
     if start_date:
-        extra.append(('DATE(tc.date) >= %s', start_date))
+        extra.append(('DATE(tc.`date`) >= %s', start_date))
     if end_date:
-        extra.append(('DATE(tc.date) <= %s', end_date))
+        extra.append(('DATE(tc.`date`) <= %s', end_date))
 
     where_str, params = _build_catches_where(session, extra)
 
     query = f"""
-        SELECT tc.catches_id, tc.trap_code, tc.date, s.species_name, tc.sex, tc.maturity,
+        SELECT tc.catches_id, tc.trap_code, tc.`date`, s.species_name, tc.sex, tc.maturity,
                ts.status_name as trap_status, tc.rebaited, b.bait_type_name,
                cond.trap_condition_name as trap_condition, tc.strikes, tc.note,
-               u.first_name || ' ' || u.last_name as recorded_by_name, l.line_name
+               CONCAT(u.first_name, ' ', u.last_name) as recorded_by_name, l.line_name
         FROM trap_catches tc
         JOIN traps t ON tc.trap_code = t.trap_code
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         JOIN species s ON tc.species_id = s.species_id
         JOIN trap_status ts ON tc.trap_status_id = ts.trap_status_id
         LEFT JOIN bait_type b ON tc.bait_type_id = b.bait_type_id
         JOIN trap_condition cond ON tc.trap_condition_id = cond.trap_condition_id
         JOIN users u ON tc.recorded_by = u.user_id
         WHERE {where_str}
-        ORDER BY tc.date DESC
+        ORDER BY tc.`date` DESC
     """
     cursor.execute(query, params)
     catches = cursor.fetchall()
@@ -209,7 +209,7 @@ def fetch_catch_by_id(catches_id):
         SELECT tc.*, t.line_id, l.line_name, tc.updated_at
         FROM trap_catches tc
         JOIN traps t ON tc.trap_code = t.trap_code
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         WHERE tc.catches_id = %s
     """, (catches_id,))
     catch = cursor.fetchone()
@@ -238,7 +238,7 @@ def fetch_catch_group(catches_id):
         SELECT l.group_id
         FROM trap_catches tc
         JOIN traps t ON tc.trap_code = t.trap_code
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         WHERE tc.catches_id = %s
     """, (catches_id,))
     row = cursor.fetchone()
@@ -292,7 +292,7 @@ def fetch_catch_form_data(trap_code=None, line_id=None):
         cursor.execute("SELECT * FROM traps WHERE trap_code = %s", (trap_code,))
         trap = cursor.fetchone()
     elif line_id:
-        cursor.execute("SELECT line_name FROM lines WHERE line_id = %s", (line_id,))
+        cursor.execute("SELECT line_name FROM `lines` WHERE line_id = %s", (line_id,))
         line = cursor.fetchone()
         cursor.execute("SELECT * FROM traps WHERE line_id = %s AND status = 'active' ORDER BY trap_code", (line_id,))
         traps = cursor.fetchall()

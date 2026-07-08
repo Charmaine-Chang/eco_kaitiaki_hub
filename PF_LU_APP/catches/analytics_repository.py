@@ -42,9 +42,9 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
         record_type = 'all'
 
     if is_super_admin:
-        cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' ORDER BY line_name ASC")
+        cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' ORDER BY line_name ASC")
     else:
-        cursor.execute("SELECT line_id, line_name FROM lines WHERE status = 'active' AND group_id = %s ORDER BY line_name ASC", (current_group_id,))
+        cursor.execute("SELECT line_id, line_name FROM `lines` WHERE status = 'active' AND group_id = %s ORDER BY line_name ASC", (current_group_id,))
     lines = cursor.fetchall()
 
     cursor.execute("SELECT species_id, species_name FROM species ORDER BY species_name ASC")
@@ -54,7 +54,7 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
     if is_super_admin:
         cursor.execute(f"""
             SELECT DISTINCT u.user_id,
-                   COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.username) as operator_name
+                   COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), ''), u.username) as operator_name
             FROM users u
             JOIN group_membership gm ON u.user_id = gm.user_id
             WHERE gm.role_id = {ROLE_OPERATOR} AND gm.membership_status = 'active'
@@ -63,7 +63,7 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
     else:
         cursor.execute(f"""
             SELECT DISTINCT u.user_id,
-                   COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.username) as operator_name
+                   COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), ''), u.username) as operator_name
             FROM group_membership gm
             JOIN users u ON gm.user_id = u.user_id
             WHERE gm.group_id = %s AND gm.membership_status = 'active' AND gm.role_id = {ROLE_OPERATOR}
@@ -99,12 +99,12 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
     equip_stat_in = ", ".join([f"'{s}'" for s in EquipmentStatus.healthy_states()])
 
     if record_type in ('all', 'trap'):
-        trap_where, trap_params = activity_conditions('tc.date', 'tc.species_id')
+        trap_where, trap_params = activity_conditions('tc.`date`', 'tc.species_id')
         activity_selects.append(f"""
             SELECT 'trap' as record_type,
-                   tc.date as record_date,
+                   tc.`date` as record_date,
                    tc.recorded_by,
-                   COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.username) as operator_name,
+                   COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), ''), u.username) as operator_name,
                    s.species_id,
                    COALESCE(s.species_name, 'Unspecified') as species_name,
                    l.line_id,
@@ -114,7 +114,7 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
                    'Trap' as equipment_type,
                    t.latitude,
                    t.longitude,
-                   0::float as bait_added,
+                   0.0 as bait_added,
                    CASE
                        WHEN LOWER(COALESCE(cond.trap_condition_name, '')) NOT IN ('', {trap_cond_in})
                          OR LOWER(COALESCE(es.equipment_status_name, '')) NOT IN ('', {equip_stat_in})
@@ -122,8 +122,8 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
                    END as maintenance_count
             FROM trap_catches tc
             JOIN traps t ON tc.trap_code = t.trap_code
-            JOIN lines l ON t.line_id = l.line_id
-            JOIN groups g ON l.group_id = g.group_id
+            JOIN `lines` l ON t.line_id = l.line_id
+            JOIN `groups` g ON l.group_id = g.group_id
             JOIN users u ON tc.recorded_by = u.user_id
             LEFT JOIN species s ON tc.species_id = s.species_id
             LEFT JOIN trap_condition cond ON tc.trap_condition_id = cond.trap_condition_id
@@ -133,12 +133,12 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
         activity_params.extend(trap_params)
 
     if record_type in ('all', 'bait'):
-        bait_where, bait_params = activity_conditions('bsr.date', 'bsr.target_species_id')
+        bait_where, bait_params = activity_conditions('bsr.`date`', 'bsr.target_species_id')
         activity_selects.append(f"""
             SELECT 'bait' as record_type,
-                   bsr.date as record_date,
+                   bsr.`date` as record_date,
                    bsr.recorded_by,
-                   COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.username) as operator_name,
+                   COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), ''), u.username) as operator_name,
                    s.species_id,
                    COALESCE(s.species_name, 'Unspecified') as species_name,
                    l.line_id,
@@ -158,8 +158,8 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
                    END as maintenance_count
             FROM bait_station_records bsr
             JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
-            JOIN lines l ON bs.line_id = l.line_id
-            JOIN groups g ON l.group_id = g.group_id
+            JOIN `lines` l ON bs.line_id = l.line_id
+            JOIN `groups` g ON l.group_id = g.group_id
             JOIN users u ON bsr.recorded_by = u.user_id
             LEFT JOIN species s ON bsr.target_species_id = s.species_id
             LEFT JOIN equipment_status es ON bs.equipment_status_id = es.equipment_status_id
@@ -188,7 +188,7 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
     """)]
 
     dates_data = [dict(row) for row in fetch_activity("""
-        SELECT TO_CHAR(DATE(record_date), 'YYYY-MM-DD') as catch_date, COUNT(*) as count
+        SELECT DATE_FORMAT(record_date, '%Y-%m-%d') as catch_date, COUNT(*) as count
         FROM activity
         GROUP BY DATE(record_date)
         ORDER BY DATE(record_date)
@@ -259,14 +259,14 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
     cursor.execute(f"""
         SELECT COUNT(*) as count
         FROM traps t
-        JOIN lines l ON t.line_id = l.line_id
+        JOIN `lines` l ON t.line_id = l.line_id
         WHERE t.status = 'active' AND {equipment_where}
     """, tuple(equipment_params))
     active_traps_count = cursor.fetchone()['count']
     cursor.execute(f"""
         SELECT COUNT(*) as count
         FROM bait_stations bs
-        JOIN lines l ON bs.line_id = l.line_id
+        JOIN `lines` l ON bs.line_id = l.line_id
         WHERE bs.status = 'active' AND {equipment_where}
     """, tuple(equipment_params))
     active_stations_count = cursor.fetchone()['count']
@@ -388,78 +388,69 @@ def fetch_trend_analytics(session, interval='month', line_id=None, start_date=No
         group_params_station.append(line_id)
 
     if start_date:
-        group_filter_trap += 'AND tc.date >= %s '
-        group_filter_bait += 'AND bsr.date >= %s '
-        group_filter_station += 'AND bsr.date >= %s '
+        group_filter_trap += 'AND tc.`date` >= %s '
+        group_filter_bait += 'AND bsr.`date` >= %s '
+        group_filter_station += 'AND bsr.`date` >= %s '
         group_params_trap.append(start_date)
         group_params_bait.append(start_date)
         group_params_station.append(start_date)
 
     if end_date:
-        group_filter_trap += 'AND tc.date <= %s '
-        group_filter_bait += 'AND bsr.date <= %s '
-        group_filter_station += 'AND bsr.date <= %s '
+        group_filter_trap += 'AND tc.`date` <= %s '
+        group_filter_bait += 'AND bsr.`date` <= %s '
+        group_filter_station += 'AND bsr.`date` <= %s '
         group_params_trap.append(f"{end_date} 23:59:59")
         group_params_bait.append(f"{end_date} 23:59:59")
         group_params_station.append(f"{end_date} 23:59:59")
 
-    # Date trunc format string for PostgreSQL
-    trunc_map = {
-        'day': 'day',
-        'week': 'week',
-        'month': 'month',
-        'year': 'year',
-    }
-    date_trunc = trunc_map[interval]
-
-    # Date format for display labels
+    # Date format for display labels (MySQL format strings)
     fmt_map = {
-        'day': 'YYYY-MM-DD',
-        'week': 'IYYY-IW',
-        'month': 'YYYY-MM',
-        'year': 'YYYY',
+        'day': '%Y-%m-%d',
+        'week': '%x-%v',
+        'month': '%Y-%m',
+        'year': '%Y',
     }
     date_fmt = fmt_map[interval]
 
     # Catches trend (trap records with a real catch / non-empty species)
     cursor.execute(f"""
-        SELECT TO_CHAR(DATE_TRUNC('{date_trunc}', tc.date), '{date_fmt}') as period,
+        SELECT DATE_FORMAT(tc.`date`, '{date_fmt}') as period,
                COUNT(*) as count
         FROM trap_catches tc
         JOIN traps t ON tc.trap_code = t.trap_code
-        JOIN lines l ON t.line_id = l.line_id
-        WHERE tc.date IS NOT NULL
+        JOIN `lines` l ON t.line_id = l.line_id
+        WHERE tc.`date` IS NOT NULL
           {group_filter_trap}
-        GROUP BY DATE_TRUNC('{date_trunc}', tc.date)
-        ORDER BY DATE_TRUNC('{date_trunc}', tc.date)
+        GROUP BY DATE_FORMAT(tc.`date`, '{date_fmt}')
+        ORDER BY DATE_FORMAT(tc.`date`, '{date_fmt}')
     """, tuple(group_params_trap))
     catches_trend = [dict(row) for row in cursor.fetchall()]
 
     # Bait consumption trend
     cursor.execute(f"""
-        SELECT TO_CHAR(DATE_TRUNC('{date_trunc}', bsr.date), '{date_fmt}') as period,
+        SELECT DATE_FORMAT(bsr.`date`, '{date_fmt}') as period,
                COALESCE(SUM(bsr.bait_added), 0) as total_bait
         FROM bait_station_records bsr
         JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
-        JOIN lines l ON bs.line_id = l.line_id
-        WHERE bsr.date IS NOT NULL
+        JOIN `lines` l ON bs.line_id = l.line_id
+        WHERE bsr.`date` IS NOT NULL
           {group_filter_bait}
-        GROUP BY DATE_TRUNC('{date_trunc}', bsr.date)
-        ORDER BY DATE_TRUNC('{date_trunc}', bsr.date)
+        GROUP BY DATE_FORMAT(bsr.`date`, '{date_fmt}')
+        ORDER BY DATE_FORMAT(bsr.`date`, '{date_fmt}')
     """, tuple(group_params_bait))
     bait_trend = [dict(row) for row in cursor.fetchall()]
 
     # Station checks trend (number of bait station check visits)
     cursor.execute(f"""
-        SELECT TO_CHAR(DATE_TRUNC('{date_trunc}', bsr.date), '{date_fmt}') as period,
+        SELECT DATE_FORMAT(bsr.`date`, '{date_fmt}') as period,
                COUNT(*) as count
         FROM bait_station_records bsr
         JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
-        JOIN lines l ON bs.line_id = l.line_id
-        WHERE bsr.date IS NOT NULL
+        JOIN `lines` l ON bs.line_id = l.line_id
+        WHERE bsr.`date` IS NOT NULL
           {group_filter_station}
-        GROUP BY DATE_TRUNC('{date_trunc}', bsr.date)
-        ORDER BY DATE_TRUNC('{date_trunc}', bsr.date)
+        GROUP BY DATE_FORMAT(bsr.`date`, '{date_fmt}')
+        ORDER BY DATE_FORMAT(bsr.`date`, '{date_fmt}')
     """, tuple(group_params_station))
     station_trend = [dict(row) for row in cursor.fetchall()]
 
@@ -467,9 +458,9 @@ def fetch_trend_analytics(session, interval='month', line_id=None, start_date=No
     seasonal_sql_trap = f"""
         SELECT
             CASE
-                WHEN EXTRACT(MONTH FROM tc.date) IN (9, 10, 11) THEN 'Spring'
-                WHEN EXTRACT(MONTH FROM tc.date) IN (12, 1, 2) THEN 'Summer'
-                WHEN EXTRACT(MONTH FROM tc.date) IN (3, 4, 5) THEN 'Autumn'
+                WHEN EXTRACT(MONTH FROM tc.`date`) IN (9, 10, 11) THEN 'Spring'
+                WHEN EXTRACT(MONTH FROM tc.`date`) IN (12, 1, 2) THEN 'Summer'
+                WHEN EXTRACT(MONTH FROM tc.`date`) IN (3, 4, 5) THEN 'Autumn'
                 ELSE 'Winter'
             END as season,
             COUNT(*) as catches,
@@ -477,17 +468,17 @@ def fetch_trend_analytics(session, interval='month', line_id=None, start_date=No
             0 as station_checks
         FROM trap_catches tc
         JOIN traps t ON tc.trap_code = t.trap_code
-        JOIN lines l ON t.line_id = l.line_id
-        WHERE tc.date IS NOT NULL {group_filter_trap}
+        JOIN `lines` l ON t.line_id = l.line_id
+        WHERE tc.`date` IS NOT NULL {group_filter_trap}
         GROUP BY season
     """
 
     seasonal_sql_bait = f"""
         SELECT
             CASE
-                WHEN EXTRACT(MONTH FROM bsr.date) IN (9, 10, 11) THEN 'Spring'
-                WHEN EXTRACT(MONTH FROM bsr.date) IN (12, 1, 2) THEN 'Summer'
-                WHEN EXTRACT(MONTH FROM bsr.date) IN (3, 4, 5) THEN 'Autumn'
+                WHEN EXTRACT(MONTH FROM bsr.`date`) IN (9, 10, 11) THEN 'Spring'
+                WHEN EXTRACT(MONTH FROM bsr.`date`) IN (12, 1, 2) THEN 'Summer'
+                WHEN EXTRACT(MONTH FROM bsr.`date`) IN (3, 4, 5) THEN 'Autumn'
                 ELSE 'Winter'
             END as season,
             0 as catches,
@@ -495,8 +486,8 @@ def fetch_trend_analytics(session, interval='month', line_id=None, start_date=No
             COUNT(*) as station_checks
         FROM bait_station_records bsr
         JOIN bait_stations bs ON bsr.bait_station_code = bs.bait_station_code
-        JOIN lines l ON bs.line_id = l.line_id
-        WHERE bsr.date IS NOT NULL {group_filter_bait}
+        JOIN `lines` l ON bs.line_id = l.line_id
+        WHERE bsr.`date` IS NOT NULL {group_filter_bait}
         GROUP BY season
     """
 
@@ -557,7 +548,7 @@ def fetch_species_distribution(session):
     if is_super_admin:
         pass
     elif role_id == ROLE_COORDINATOR:
-        dist_query += " AND t.line_id IN (SELECT line_id FROM lines WHERE group_id = %s)"
+        dist_query += " AND t.line_id IN (SELECT line_id FROM `lines` WHERE group_id = %s)"
         dist_params.append(current_group_id)
     else:
         dist_query += " AND t.line_id IN (SELECT line_id FROM operator_lines WHERE user_id = %s)"

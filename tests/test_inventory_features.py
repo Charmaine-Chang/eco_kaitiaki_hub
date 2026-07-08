@@ -79,8 +79,9 @@ def main():
         c.execute("SELECT bait_type_id, bait_type_name FROM bait_type LIMIT 1")
         bait = c.fetchone()
         if not bait:
-            c.execute("INSERT INTO bait_type (bait_type_name) VALUES (%s) RETURNING bait_type_id, bait_type_name", ('Test Bait',))
-            bait = c.fetchone()
+            c.execute("INSERT INTO bait_type (bait_type_name) VALUES (%s)", ('Test Bait',))
+            bait_type_id = c.lastrowid
+            bait = {'bait_type_id': bait_type_id, 'bait_type_name': 'Test Bait'}
         bait_type_id = bait['bait_type_id']
         bait_type_name = bait['bait_type_name']
 
@@ -91,10 +92,11 @@ def main():
         bait_item = c.fetchone()
         if not bait_item:
             c.execute(
-                "INSERT INTO inventory_items (group_id, item_category, item_name, quantity, threshold) VALUES (%s, 'Bait', %s, %s, %s) RETURNING item_id, quantity",
+                "INSERT INTO inventory_items (group_id, item_category, item_name, quantity, threshold) VALUES (%s, 'Bait', %s, %s, %s)",
                 (2, bait_type_name, 5, 1),
             )
-            bait_item = c.fetchone()
+            item_id = c.lastrowid
+            bait_item = {'item_id': item_id, 'quantity': 5}
 
         initial_qty = bait_item['quantity'] if bait_item['quantity'] is not None else 0
         c.execute(

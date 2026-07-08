@@ -44,7 +44,7 @@ def view_lines():
 
             is_global_view = False
             if current_group_id:
-                cursor.execute("SELECT group_name FROM groups WHERE group_id = %s", (current_group_id,))
+                cursor.execute("SELECT group_name FROM `groups` WHERE group_id = %s", (current_group_id,))
                 g_res = cursor.fetchone()
                 if g_res and g_res['group_name'] == 'System Management':
                     is_global_view = True
@@ -53,13 +53,13 @@ def view_lines():
                 SELECT l.*, g.group_name,
                        (SELECT COUNT(*) FROM traps t WHERE t.line_id = l.line_id AND (t.status = 'active' OR t.status IS NULL)) as trap_count,
                        (SELECT COUNT(*) FROM bait_stations b WHERE b.line_id = l.line_id AND (b.status = 'active' OR b.status IS NULL)) as station_count,
-                       (SELECT STRING_AGG(u.first_name || ' ' || u.last_name, ', ' ORDER BY u.first_name)
+                       (SELECT GROUP_CONCAT(CONCAT(u.first_name, ' ', u.last_name) ORDER BY u.first_name SEPARATOR ', ')
                         FROM operator_lines ol2
                         JOIN users u ON ol2.user_id = u.user_id
                         WHERE ol2.line_id = l.line_id) AS operator_names,
                        EXISTS (SELECT 1 FROM operator_lines ol3 WHERE ol3.line_id = l.line_id AND ol3.user_id = %s) AS is_assigned
-                FROM lines l
-                JOIN groups g ON l.group_id = g.group_id
+                FROM `lines` l
+                JOIN `groups` g ON l.group_id = g.group_id
             """
             params = [session.get('user_id')]
 
@@ -75,7 +75,7 @@ def view_lines():
 
             if not selected_line_id:
                 if is_global_view or not current_group_id:
-                    cursor.execute("SELECT COUNT(*) FROM lines WHERE status = 'active'")
+                    cursor.execute("SELECT COUNT(*) FROM `lines` WHERE status = 'active'")
                     stats['total_active_lines'] = cursor.fetchone()['count']
 
                     cursor.execute("""
@@ -87,39 +87,39 @@ def view_lines():
                     stats['total_equipment'] = cursor.fetchone()['count']
 
                     cursor.execute("""
-                        SELECT 'catch' as type, tc.date, u.username, t.trap_code as code, s.species_name, s.species_color, l.line_name
+                        SELECT 'catch' as type, tc.`date`, u.username, t.trap_code as code, s.species_name, s.species_color, l.line_name
                         FROM trap_catches tc
                         JOIN traps t ON tc.trap_code = t.trap_code
-                        JOIN lines l ON t.line_id = l.line_id
+                        JOIN `lines` l ON t.line_id = l.line_id
                         JOIN users u ON tc.recorded_by = u.user_id
                         JOIN species s ON tc.species_id = s.species_id
-                        ORDER BY tc.date DESC LIMIT 15
+                        ORDER BY tc.`date` DESC LIMIT 15
                     """)
                     recent_activity = cursor.fetchall()
 
                     if recent_activity:
                         stats['last_sync'] = recent_activity[0]['date']
                 elif current_group_id:
-                    cursor.execute("SELECT COUNT(*) FROM lines WHERE group_id = %s AND status = 'active'", (current_group_id,))
+                    cursor.execute("SELECT COUNT(*) FROM `lines` WHERE group_id = %s AND status = 'active'", (current_group_id,))
                     stats['total_active_lines'] = cursor.fetchone()['count']
 
                     cursor.execute("""
                         SELECT
-                            (SELECT COUNT(*) FROM traps t JOIN lines l ON t.line_id = l.line_id WHERE l.group_id = %s AND t.status = 'active') +
-                            (SELECT COUNT(*) FROM bait_stations b JOIN lines l ON b.line_id = l.line_id WHERE l.group_id = %s AND b.status = 'active')
+                            (SELECT COUNT(*) FROM traps t JOIN `lines` l ON t.line_id = l.line_id WHERE l.group_id = %s AND t.status = 'active') +
+                            (SELECT COUNT(*) FROM bait_stations b JOIN `lines` l ON b.line_id = l.line_id WHERE l.group_id = %s AND b.status = 'active')
                         as count
                     """, (current_group_id, current_group_id))
                     stats['total_equipment'] = cursor.fetchone()['count']
 
                     cursor.execute("""
-                        SELECT 'catch' as type, tc.date, u.username, t.trap_code as code, s.species_name, s.species_color, l.line_name
+                        SELECT 'catch' as type, tc.`date`, u.username, t.trap_code as code, s.species_name, s.species_color, l.line_name
                         FROM trap_catches tc
                         JOIN traps t ON tc.trap_code = t.trap_code
-                        JOIN lines l ON t.line_id = l.line_id
+                        JOIN `lines` l ON t.line_id = l.line_id
                         JOIN users u ON tc.recorded_by = u.user_id
                         JOIN species s ON tc.species_id = s.species_id
                         WHERE l.group_id = %s
-                        ORDER BY tc.date DESC LIMIT 15
+                        ORDER BY tc.`date` DESC LIMIT 15
                     """, (current_group_id,))
                     recent_activity = cursor.fetchall()
 
@@ -170,7 +170,7 @@ def view_lines():
                 cursor.execute("""
                     SELECT COUNT(DISTINCT bait_station_code) as checked_count
                     FROM bait_station_records
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
                     AND bait_station_code IN (SELECT bait_station_code FROM bait_stations WHERE line_id = %s)
                 """, (selected_line_id,))
                 checked_stations = cursor.fetchone()['checked_count'] or 0
@@ -178,7 +178,7 @@ def view_lines():
                 cursor.execute("""
                     SELECT COUNT(DISTINCT trap_code) as checked_count
                     FROM trap_catches
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
                     AND trap_code IN (SELECT trap_code FROM traps WHERE line_id = %s)
                 """, (selected_line_id,))
                 checked_traps = cursor.fetchone()['checked_count'] or 0
@@ -188,20 +188,20 @@ def view_lines():
                 line_kpis['health_score'] = int((total_checked / total_nodes * 100)) if total_nodes > 0 else 0
 
                 cursor.execute("""
-                    SELECT bsr.date, COALESCE(u.first_name, u.username) || ' ' || COALESCE(u.last_name, '') as operator
+                    SELECT bsr.`date`, CONCAT(COALESCE(u.first_name, u.username), ' ', COALESCE(u.last_name, '')) as operator
                     FROM bait_station_records bsr
                     JOIN users u ON bsr.recorded_by = u.user_id
                     WHERE bsr.bait_station_code IN (SELECT bait_station_code FROM bait_stations WHERE line_id = %s)
-                    ORDER BY bsr.date DESC LIMIT 1
+                    ORDER BY bsr.`date` DESC LIMIT 1
                 """, (selected_line_id,))
                 last_station = cursor.fetchone()
 
                 cursor.execute("""
-                    SELECT tc.date, COALESCE(u.first_name, u.username) || ' ' || COALESCE(u.last_name, '') as operator
+                    SELECT tc.`date`, CONCAT(COALESCE(u.first_name, u.username), ' ', COALESCE(u.last_name, '')) as operator
                     FROM trap_catches tc
                     JOIN users u ON tc.recorded_by = u.user_id
                     WHERE tc.trap_code IN (SELECT trap_code FROM traps WHERE line_id = %s)
-                    ORDER BY tc.date DESC LIMIT 1
+                    ORDER BY tc.`date` DESC LIMIT 1
                 """, (selected_line_id,))
                 last_trap = cursor.fetchone()
 
@@ -246,7 +246,7 @@ def view_lines():
             group_longitude = None
             map_group_id = selected_line_group_id if (is_global_view and selected_line_id) else current_group_id
             if map_group_id:
-                cursor.execute("SELECT boundary_geojson, latitude, longitude FROM groups WHERE group_id = %s", (map_group_id,))
+                cursor.execute("SELECT boundary_geojson, latitude, longitude FROM `groups` WHERE group_id = %s", (map_group_id,))
                 grp = cursor.fetchone()
                 if grp:
                     boundary_geojson = grp.get('boundary_geojson')
@@ -300,9 +300,9 @@ def create_new_lines():
             with get_cursor_context() as cursor:
 
                 if not session.get('is_super_admin'):
-                    cursor.execute('SELECT line_id FROM lines WHERE line_name ILIKE %s AND group_id = %s', (line_name, current_group_id))
+                    cursor.execute('SELECT line_id FROM `lines` WHERE line_name LIKE %s AND group_id = %s', (line_name, current_group_id))
                 else:
-                    cursor.execute('SELECT line_id FROM lines WHERE line_name ILIKE %s', (line_name,))
+                    cursor.execute('SELECT line_id FROM `lines` WHERE line_name LIKE %s', (line_name,))
 
                 if cursor.fetchone():
                     flash(f"A {line_type} line with the name '{line_name}' already exists.", "danger")
@@ -310,7 +310,7 @@ def create_new_lines():
 
                 target_group_id = current_group_id if current_group_id else 1
 
-                cursor.execute('INSERT INTO lines (line_name, line_type, status, group_id) VALUES (%s, %s, %s, %s)',
+                cursor.execute('INSERT INTO `lines` (line_name, line_type, status, group_id) VALUES (%s, %s, %s, %s)',
                                (line_name, line_type, status, target_group_id))
                 conn.commit()
 
@@ -325,9 +325,9 @@ def create_new_lines():
     try:
         with get_cursor_context() as cursor:
             if not session.get('is_super_admin'):
-                cursor.execute('SELECT * FROM lines WHERE group_id = %s ORDER BY created_at DESC', (current_group_id,))
+                cursor.execute('SELECT * FROM `lines` WHERE group_id = %s ORDER BY created_at DESC', (current_group_id,))
             else:
-                cursor.execute('SELECT * FROM lines ORDER BY created_at DESC')
+                cursor.execute('SELECT * FROM `lines` ORDER BY created_at DESC')
             trap_lines = cursor.fetchall()
     except Exception as e:
         current_app.logger.exception(f"Error fetching existing lines: {e}")
@@ -345,7 +345,7 @@ def edit_line(line_id):
             current_group_id = session.get('current_group_id')
             is_super = session.get('is_super_admin')
 
-            cursor.execute("SELECT * FROM lines WHERE line_id = %s", (line_id,))
+            cursor.execute("SELECT * FROM `lines` WHERE line_id = %s", (line_id,))
             line = cursor.fetchone()
 
             if not line or (not is_super and str(line['group_id']) != str(current_group_id)):
@@ -367,14 +367,14 @@ def edit_line(line_id):
                     flash("Invalid line type submitted.", "danger")
                     return redirect(url_for('admin.edit_line', line_id=line_id))
 
-                cursor.execute('SELECT line_id FROM lines WHERE line_name ILIKE %s AND line_id != %s AND group_id = %s',
+                cursor.execute('SELECT line_id FROM `lines` WHERE line_name LIKE %s AND line_id != %s AND group_id = %s',
                                (line_name, line_id, line['group_id']))
                 if cursor.fetchone():
                     flash(f"Another line with the name '{line_name}' already exists in this group.", "danger")
                     return redirect(url_for('admin.edit_line', line_id=line_id))
 
                 cursor.execute(
-                    'UPDATE lines SET line_name = %s, line_type = %s, status = %s WHERE line_id = %s',
+                    'UPDATE `lines` SET line_name = %s, line_type = %s, status = %s WHERE line_id = %s',
                     (line_name, line_type, status, line_id),
                 )
 
@@ -406,14 +406,14 @@ def action_retire_line(line_id):
         conn = get_db()
         with get_cursor_context() as cursor:
 
-            cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (line_id,))
+            cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (line_id,))
             line = cursor.fetchone()
             if not line or (not session.get('is_super_admin') and str(line['group_id']) != str(session.get('current_group_id'))):
                 flash("Access denied.", "danger")
                 return redirect(url_for('admin.view_lines'))
 
             retired_id = get_equipment_status_id(cursor, 'Retired')
-            cursor.execute("UPDATE lines SET status = 'inactive' WHERE line_id = %s", (line_id,))
+            cursor.execute("UPDATE `lines` SET status = 'inactive' WHERE line_id = %s", (line_id,))
             cursor.execute("UPDATE traps SET status = 'inactive', equipment_status_id = %s WHERE line_id = %s", (retired_id, line_id))
             cursor.execute("UPDATE bait_stations SET status = 'inactive', equipment_status_id = %s WHERE line_id = %s", (retired_id, line_id))
             conn.commit()
@@ -439,7 +439,7 @@ def retired_assets():
 
             current_group_name = "Global View"
             if group_id:
-                cursor.execute("SELECT group_name FROM groups WHERE group_id = %s", (group_id,))
+                cursor.execute("SELECT group_name FROM `groups` WHERE group_id = %s", (group_id,))
                 res = cursor.fetchone()
                 if res:
                     current_group_name = res['group_name']
@@ -448,7 +448,7 @@ def retired_assets():
                 SELECT l.*,
                        (SELECT COUNT(*) FROM traps t WHERE t.line_id = l.line_id) as trap_count,
                        (SELECT COUNT(*) FROM bait_stations b WHERE b.line_id = l.line_id) as bait_station_count
-                FROM lines l
+                FROM `lines` l
                 WHERE l.status = 'inactive'
             """
             line_params = []
@@ -476,7 +476,7 @@ def retired_assets():
                 SELECT t.trap_code, tt.trap_type_name, l.line_name, t.latitude, t.longitude
                 FROM traps t
                 JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 WHERE (t.status = 'inactive' OR l.status = 'inactive')
             """
             trap_params = []
@@ -492,7 +492,7 @@ def retired_assets():
                 SELECT b.bait_station_code, bt.bait_station_type_name, l.line_name, b.latitude, b.longitude
                 FROM bait_stations b
                 JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-                JOIN lines l ON b.line_id = l.line_id
+                JOIN `lines` l ON b.line_id = l.line_id
                 WHERE (b.status = 'inactive' OR l.status = 'inactive')
             """
             bs_params = []
@@ -521,7 +521,7 @@ def action_restore_line(line_id):
     try:
         conn = get_db()
         with get_cursor_context() as cursor:
-            cursor.execute("UPDATE lines SET status = 'active' WHERE line_id = %s", (line_id,))
+            cursor.execute("UPDATE `lines` SET status = 'active' WHERE line_id = %s", (line_id,))
             conn.commit()
         flash("Line was successfully restored.", "success")
     except Exception as e:

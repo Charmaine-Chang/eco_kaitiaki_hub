@@ -107,7 +107,7 @@ def fetch_user_memberships(user_id):
     cursor.execute("""
         SELECT gm.group_id, g.group_name, gm.role_id, r.role_name
         FROM group_membership gm
-        JOIN groups g ON gm.group_id = g.group_id
+        JOIN `groups` g ON gm.group_id = g.group_id
         JOIN roles r ON gm.role_id = r.role_id
         WHERE gm.user_id = %s AND gm.membership_status = 'active' AND g.status = 'active'
     """, (user_id,))
@@ -122,7 +122,7 @@ def fetch_membership(user_id, group_id):
     cursor.execute("""
         SELECT gm.group_id, g.group_name, gm.role_id
         FROM group_membership gm
-        JOIN groups g ON gm.group_id = g.group_id
+        JOIN `groups` g ON gm.group_id = g.group_id
         WHERE gm.user_id = %s AND gm.group_id = %s
         AND gm.membership_status = 'active' AND g.status = 'active'
     """, (user_id, group_id))
@@ -138,7 +138,7 @@ def fetch_all_memberships_with_details(user_id):
         SELECT g.group_id, g.group_name, g.description, g.geographic_area,
                g.visibility, g.status, g.branding_image, g.primary_color,
                gm.membership_status, r.role_name
-        FROM groups g
+        FROM `groups` g
         JOIN group_membership gm ON g.group_id = gm.group_id
         JOIN roles r ON gm.role_id = r.role_id
         WHERE gm.user_id = %s
@@ -155,7 +155,7 @@ def fetch_pending_group_applications(user_id):
     cursor.execute("""
         SELECT group_id, group_name, description, geographic_area,
                visibility, status, created_at
-        FROM groups
+        FROM `groups`
         WHERE created_by = %s AND status = 'pending'
         ORDER BY created_at DESC
     """, (user_id,))
@@ -167,7 +167,7 @@ def fetch_pending_group_applications(user_id):
 def fetch_group_color(group_id):
     """Get group primary color."""
     cursor = get_cursor()
-    cursor.execute("SELECT primary_color FROM groups WHERE group_id = %s", (group_id,))
+    cursor.execute("SELECT primary_color FROM `groups` WHERE group_id = %s", (group_id,))
     row = cursor.fetchone()
     cursor.close()
     return row['primary_color'] if row else None
@@ -178,7 +178,7 @@ def fetch_group_color(group_id):
 def check_group_name_exists(group_name):
     """Check if a group name already exists."""
     cursor = get_cursor()
-    cursor.execute("SELECT group_id FROM groups WHERE LOWER(group_name) = LOWER(%s)", (group_name,))
+    cursor.execute("SELECT group_id FROM `groups` WHERE LOWER(group_name) = LOWER(%s)", (group_name,))
     row = cursor.fetchone()
     cursor.close()
     return row is not None
@@ -189,7 +189,7 @@ def create_group_application(group_name, description, geographic_area,
     """Submit a new group application."""
     cursor = get_cursor()
     cursor.execute("""
-        INSERT INTO groups (group_name, description, geographic_area, visibility, created_by, status)
+        INSERT INTO `groups` (group_name, description, geographic_area, visibility, created_by, status)
         VALUES (%s, %s, %s, %s, %s, 'pending')
     """, (group_name, description, geographic_area, visibility, created_by))
     cursor.close()
@@ -200,7 +200,7 @@ def create_group_application(group_name, description, geographic_area,
 def fetch_group_visibility(group_id):
     """Get group visibility setting."""
     cursor = get_cursor()
-    cursor.execute("SELECT visibility FROM groups WHERE group_id = %s AND status = 'active'", (group_id,))
+    cursor.execute("SELECT visibility FROM `groups` WHERE group_id = %s AND status = 'active'", (group_id,))
     row = cursor.fetchone()
     cursor.close()
     return row['visibility'] if row else None
@@ -209,7 +209,7 @@ def fetch_group_visibility(group_id):
 def fetch_group_basic(group_id):
     """Get basic group info (name, color)."""
     cursor = get_cursor()
-    cursor.execute("SELECT group_name, primary_color FROM groups WHERE group_id = %s", (group_id,))
+    cursor.execute("SELECT group_name, primary_color FROM `groups` WHERE group_id = %s", (group_id,))
     row = cursor.fetchone()
     cursor.close()
     return row
@@ -265,8 +265,7 @@ def create_role_upgrade_request(user_id, group_id, requested_role_id):
     """Submit a role upgrade request."""
     cursor = get_cursor()
     cursor.execute("""
-        INSERT INTO role_upgrade_requests (user_id, group_id, requested_role_id, status)
+        INSERT IGNORE INTO role_upgrade_requests (user_id, group_id, requested_role_id, status)
         VALUES (%s, %s, %s, 'pending')
-        ON CONFLICT (user_id, group_id, requested_role_id, status) DO NOTHING
     """, (user_id, group_id, requested_role_id))
     cursor.close()

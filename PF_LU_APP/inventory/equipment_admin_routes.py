@@ -35,7 +35,7 @@ def add_equipment():
                     flash("Invalid numeric data provided for coordinates or assignments.", "danger")
                     return redirect(url_for('admin.add_equipment', line_id=line_id))
 
-                cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (l_id,))
+                cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (l_id,))
                 line_row = cursor.fetchone()
                 line_group_id = line_row['group_id'] if line_row else current_group_id
 
@@ -79,8 +79,8 @@ def add_equipment():
                         return redirect(url_for('admin.add_equipment', line_id=line_id))
 
                     if bait_station_type_id == 'other' and custom_station_type:
-                        cursor.execute("INSERT INTO bait_station_type (bait_station_type_name) VALUES (%s) RETURNING bait_station_type_id", (custom_station_type,))
-                        bait_station_type_id = cursor.fetchone()['bait_station_type_id']
+                        cursor.execute("INSERT INTO bait_station_type (bait_station_type_name) VALUES (%s)", (custom_station_type,))
+                        bait_station_type_id = cursor.lastrowid
                     elif bait_station_type_id and bait_station_type_id != 'other':
                         bait_station_type_id = int(bait_station_type_id)
                     else:
@@ -98,9 +98,9 @@ def add_equipment():
 
             # GET method
             if not session.get('is_super_admin'):
-                cursor.execute("SELECT * FROM lines WHERE group_id = %s AND status = 'active' ORDER BY line_name ASC", (current_group_id,))
+                cursor.execute("SELECT * FROM `lines` WHERE group_id = %s AND status = 'active' ORDER BY line_name ASC", (current_group_id,))
             else:
-                cursor.execute("SELECT * FROM lines WHERE status = 'active' ORDER BY line_name ASC")
+                cursor.execute("SELECT * FROM `lines` WHERE status = 'active' ORDER BY line_name ASC")
             lines = cursor.fetchall()
 
             cursor.execute('SELECT * FROM trap_type ORDER BY trap_type_name ASC')
@@ -118,7 +118,7 @@ def add_equipment():
                     SELECT t.trap_code as code, tt.trap_type_name as type, l.line_name, t.latitude, t.longitude, t.created_at, 'trap' as item_type
                     FROM traps t
                     JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-                    JOIN lines l ON t.line_id = l.line_id
+                    JOIN `lines` l ON t.line_id = l.line_id
                     WHERE t.line_id = %s AND (t.status = 'active' OR t.status IS NULL)
                     ''', (selected_line_id,)
                 )
@@ -129,7 +129,7 @@ def add_equipment():
                     SELECT b.bait_station_code as code, bt.bait_station_type_name as type, l.line_name, b.latitude, b.longitude, b.created_at, 'bait_station' as item_type
                     FROM bait_stations b
                     JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-                    JOIN lines l ON b.line_id = l.line_id
+                    JOIN `lines` l ON b.line_id = l.line_id
                     WHERE b.line_id = %s AND (b.status = 'active' OR b.status IS NULL)
                     ''', (selected_line_id,)
                 )
@@ -138,7 +138,7 @@ def add_equipment():
                 # Sort descending by created_at handling None
                 equipment = sorted(list(traps) + list(stations), key=lambda x: str(x['created_at']) if x['created_at'] else '', reverse=True)
 
-                cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (selected_line_id,))
+                cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (selected_line_id,))
                 line_row = cursor.fetchone()
                 if line_row:
                     selected_line_group_id = line_row['group_id']
@@ -148,7 +148,7 @@ def add_equipment():
             group_longitude = None
             target_boundary_group_id = selected_line_group_id if selected_line_group_id else current_group_id
             if target_boundary_group_id:
-                cursor.execute("SELECT boundary_geojson, latitude, longitude, group_name FROM groups WHERE group_id = %s", (target_boundary_group_id,))
+                cursor.execute("SELECT boundary_geojson, latitude, longitude, group_name FROM `groups` WHERE group_id = %s", (target_boundary_group_id,))
                 grp = cursor.fetchone()
                 if grp and grp['group_name'] != 'System Management':
                     boundary_geojson = grp.get('boundary_geojson')

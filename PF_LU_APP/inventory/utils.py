@@ -159,9 +159,9 @@ def fetch_consumable_stock(cursor, group_id=None, all_groups=False):
             l.line_name,
             i.unit_of_measure
         FROM inventory_items i
-        JOIN groups g ON i.group_id = g.group_id
+        JOIN `groups` g ON i.group_id = g.group_id
         LEFT JOIN storage_area sa ON i.storage_area_id = sa.storage_area_id
-        LEFT JOIN lines l ON i.line_id = l.line_id
+        LEFT JOIN `lines` l ON i.line_id = l.line_id
         WHERE i.is_retired IS NOT TRUE
           AND LOWER(i.item_category) LIKE 'bait%%'
     """
@@ -185,7 +185,7 @@ def fetch_low_stock_alerts(cursor, group_id=None, all_groups=False):
         SELECT i.item_id, i.item_name, i.item_category, i.quantity, i.threshold, i.group_id,
                i.storage_area_id, g.group_name, sa.storage_area_name
         FROM inventory_items i
-        JOIN groups g ON i.group_id = g.group_id
+        JOIN `groups` g ON i.group_id = g.group_id
         LEFT JOIN storage_area sa ON i.storage_area_id = sa.storage_area_id
         WHERE i.is_retired IS NOT TRUE
           AND (LOWER(i.item_category) LIKE 'bait%%' OR LOWER(i.item_category) LIKE 'toxin%%' OR LOWER(i.item_category) LIKE 'equipment%%')

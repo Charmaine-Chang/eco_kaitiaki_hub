@@ -19,7 +19,7 @@ def fetch_membership_role(user_id, group_id):
 def check_group_name_exists(group_name):
     """Check if a group name already exists."""
     cursor = get_cursor()
-    cursor.execute("SELECT 1 FROM groups WHERE LOWER(group_name) = LOWER(%s)", (group_name,))
+    cursor.execute("SELECT 1 FROM `groups` WHERE LOWER(group_name) = LOWER(%s)", (group_name,))
     row = cursor.fetchone()
     cursor.close()
     return row is not None
@@ -29,7 +29,7 @@ def create_group(group_name, description, geographic_area, visibility, created_b
     """Create a new group application."""
     cursor = get_cursor()
     cursor.execute("""
-        INSERT INTO groups (group_name, description, geographic_area, visibility, created_by, status, branding_image)
+        INSERT INTO `groups` (group_name, description, geographic_area, visibility, created_by, status, branding_image)
         VALUES (%s, %s, %s, %s, %s, 'pending', %s)
     """, (group_name, description, geographic_area, visibility, created_by, branding_image))
     cursor.close()
@@ -38,7 +38,7 @@ def create_group(group_name, description, geographic_area, visibility, created_b
 def fetch_group_visibility(group_id):
     """Get group visibility."""
     cursor = get_cursor()
-    cursor.execute("SELECT visibility FROM groups WHERE group_id = %s", (group_id,))
+    cursor.execute("SELECT visibility FROM `groups` WHERE group_id = %s", (group_id,))
     row = cursor.fetchone()
     cursor.close()
     return row['visibility'] if row else None
@@ -84,7 +84,7 @@ def fetch_update_detail(update_id, group_id):
     cursor.execute("""
         SELECT gu.update_id, gu.group_id, gu.update_title, gu.update_content,
                gu.created_at, u.username,
-               COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.username) AS author_display,
+               COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.username) AS author_display,
                COALESCE(lc.like_count, 0) AS like_count
         FROM group_updates gu
         JOIN users u ON gu.user_id = u.user_id
@@ -110,7 +110,7 @@ def fetch_update_comments(update_id):
     cursor = get_cursor()
     cursor.execute("""
         SELECT c.comment_id, c.comment_content, c.created_at, c.user_id, u.username,
-               COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.username) AS author_display
+               COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.username) AS author_display
         FROM update_comments c
         JOIN users u ON c.user_id = u.user_id
         WHERE c.update_id = %s
@@ -159,14 +159,13 @@ def delete_comment(comment_id, update_id, group_id):
     """Delete a comment (only own comments)."""
     cursor = get_cursor()
     cursor.execute("""
-        DELETE FROM update_comments c USING group_updates gu
-        WHERE c.comment_id = %s AND c.update_id = %s
-        AND gu.update_id = c.update_id AND gu.group_id = %s
-        RETURNING c.comment_id
+        DELETE c FROM update_comments c
+        JOIN group_updates gu ON gu.update_id = c.update_id
+        WHERE c.comment_id = %s AND c.update_id = %s AND gu.group_id = %s
     """, (comment_id, update_id, group_id))
-    row = cursor.fetchone()
+    row = cursor.rowcount
     cursor.close()
-    return row is not None
+    return row > 0
 
 
 # ── Group Updates CRUD ───────────────────────────────────────────
@@ -174,7 +173,7 @@ def delete_comment(comment_id, update_id, group_id):
 def fetch_group_name(group_id):
     """Get group name."""
     cursor = get_cursor()
-    cursor.execute("SELECT group_name FROM groups WHERE group_id = %s", (group_id,))
+    cursor.execute("SELECT group_name FROM `groups` WHERE group_id = %s", (group_id,))
     row = cursor.fetchone()
     cursor.close()
     return row['group_name'] if row else None
@@ -201,7 +200,7 @@ def fetch_updates_list(group_id, include_drafts=False):
     cursor = get_cursor()
     query = """
         SELECT u.*, us.first_name, us.last_name,
-               COALESCE(NULLIF(TRIM(us.first_name || ' ' || us.last_name), ''), us.username) AS author_display,
+               COALESCE(NULLIF(TRIM(CONCAT(us.first_name, ' ', us.last_name)), ''), us.username) AS author_display,
                COALESCE(lc.like_count, 0) AS like_count,
                COALESCE(cc.comment_count, 0) AS comment_count
         FROM group_updates u
@@ -251,10 +250,10 @@ def create_update(group_id, user_id, title, content, photo_url=None, is_publishe
     cursor = get_cursor()
     cursor.execute(
         """INSERT INTO group_updates (group_id, user_id, update_title, update_content, photo_url, is_published)
-           VALUES (%s, %s, %s, %s, %s, %s) RETURNING update_id""",
+           VALUES (%s, %s, %s, %s, %s, %s)""",
         (group_id, user_id, title, content, photo_url, is_published),
     )
-    update_id = cursor.fetchone()['update_id']
+    update_id = cursor.lastrowid
     cursor.close()
     return update_id
 

@@ -74,7 +74,7 @@ def validate_location_within_boundary(cursor, group_id, lat, lng):
     if not group_id:
         return True
     try:
-        cursor.execute("SELECT boundary_geojson FROM groups WHERE group_id = %s", (group_id,))
+        cursor.execute("SELECT boundary_geojson FROM `groups` WHERE group_id = %s", (group_id,))
         row = cursor.fetchone()
     except Exception as e:
         # Column might not exist; consider no boundary defined

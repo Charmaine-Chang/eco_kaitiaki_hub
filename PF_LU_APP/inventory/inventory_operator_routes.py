@@ -48,7 +48,7 @@ def view_inventory():
             # Fetch all active lines in this group
             cursor.execute("""
                 SELECT DISTINCT l.line_id, l.line_name
-                FROM lines l
+                FROM `lines` l
                 WHERE l.group_id = %s AND l.status = 'active'
                 ORDER BY l.line_name
             """, (group_id,))
@@ -65,7 +65,7 @@ def view_inventory():
                        es.equipment_status_name as equipment_status_name
                 FROM traps t
                 JOIN trap_type tt ON t.trap_type_id = tt.trap_type_id
-                JOIN lines l ON t.line_id = l.line_id
+                JOIN `lines` l ON t.line_id = l.line_id
                 LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
                 WHERE l.group_id = %s
             """
@@ -77,7 +77,7 @@ def view_inventory():
                        es.equipment_status_name as equipment_status_name
                 FROM bait_stations b
                 JOIN bait_station_type bt ON b.bait_station_type_id = bt.bait_station_type_id
-                JOIN lines l ON b.line_id = l.line_id
+                JOIN `lines` l ON b.line_id = l.line_id
                 LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
                 WHERE l.group_id = %s
             """
@@ -86,7 +86,7 @@ def view_inventory():
             params = [group_id, group_id]
 
             if search_query:
-                where_clauses += " AND code ILIKE %s"
+                where_clauses += " AND code LIKE %s"
                 params.append(f'%{search_query}%')
             if line_filter:
                 where_clauses += " AND line_id = %s"
@@ -169,7 +169,7 @@ def update_equipment_status():
                     SELECT t.trap_code, t.status AS current_status, es.equipment_status_name AS current_status_name
                     FROM traps t
                     LEFT JOIN equipment_status es ON t.equipment_status_id = es.equipment_status_id
-                    JOIN lines l ON t.line_id = l.line_id
+                    JOIN `lines` l ON t.line_id = l.line_id
                     WHERE t.trap_code = %s AND l.group_id = %s
                 """, (code, group_id))
             else:
@@ -177,7 +177,7 @@ def update_equipment_status():
                     SELECT b.bait_station_code, b.status AS current_status, es.equipment_status_name AS current_status_name
                     FROM bait_stations b
                     LEFT JOIN equipment_status es ON b.equipment_status_id = es.equipment_status_id
-                    JOIN lines l ON b.line_id = l.line_id
+                    JOIN `lines` l ON b.line_id = l.line_id
                     WHERE b.bait_station_code = %s AND l.group_id = %s
                 """, (code, group_id))
 

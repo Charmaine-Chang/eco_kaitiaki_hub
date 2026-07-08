@@ -50,12 +50,12 @@ def view_lines():
                 SELECT l.*, g.group_name,
                        (SELECT COUNT(*) FROM traps t WHERE t.line_id = l.line_id AND (t.status = 'active' OR t.status IS NULL)) as trap_count,
                        (SELECT COUNT(*) FROM bait_stations b WHERE b.line_id = l.line_id AND (b.status = 'active' OR b.status IS NULL)) as station_count,
-                       (SELECT STRING_AGG(u.first_name || ' ' || u.last_name, ', ' ORDER BY u.first_name)
+                       (SELECT GROUP_CONCAT(CONCAT(u.first_name, ' ', u.last_name) ORDER BY u.first_name SEPARATOR ', ')
                         FROM operator_lines ol2
                         JOIN users u ON ol2.user_id = u.user_id
                         WHERE ol2.line_id = l.line_id) AS operator_names
-                FROM lines l
-                JOIN groups g ON l.group_id = g.group_id
+                FROM `lines` l
+                JOIN `groups` g ON l.group_id = g.group_id
                 WHERE l.status = 'active'
             """
             params = []
@@ -73,14 +73,14 @@ def view_lines():
             if not selected_line_id:
                 # Global Activity for Observers (all groups)
                 cursor.execute("""
-                    SELECT 'catch' as type, tc.date, u.username, t.trap_code as code, 
+                    SELECT 'catch' as type, tc.`date`, u.username, t.trap_code as code,
                            s.species_name, l.line_name
                     FROM trap_catches tc
                     JOIN users u ON tc.recorded_by = u.user_id
                     JOIN traps t ON tc.trap_code = t.trap_code
-                    JOIN lines l ON t.line_id = l.line_id
+                    JOIN `lines` l ON t.line_id = l.line_id
                     JOIN species s ON tc.species_id = s.species_id
-                    ORDER BY tc.date DESC LIMIT 5
+                    ORDER BY tc.`date` DESC LIMIT 5
                 """)
                 recent_activity = cursor.fetchall()
                 if recent_activity:
@@ -131,7 +131,7 @@ def view_lines():
                     cursor.execute("""
                         SELECT COUNT(DISTINCT bait_station_code) as checked_count
                         FROM bait_station_records
-                        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                        WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
                         AND bait_station_code IN (SELECT bait_station_code FROM bait_stations WHERE line_id = %s)
                     """, (selected_line_id,))
                     checked_stations = cursor.fetchone()['checked_count'] or 0
@@ -139,7 +139,7 @@ def view_lines():
                     cursor.execute("""
                         SELECT COUNT(DISTINCT trap_code) as checked_count
                         FROM trap_catches
-                        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                        WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
                         AND trap_code IN (SELECT trap_code FROM traps WHERE line_id = %s)
                     """, (selected_line_id,))
                     checked_traps = cursor.fetchone()['checked_count'] or 0
@@ -150,20 +150,20 @@ def view_lines():
 
                     # Last check: most recent check between bait stations and traps
                     cursor.execute("""
-                        SELECT bsr.date, COALESCE(u.first_name, u.username) || ' ' || COALESCE(u.last_name, '') as operator
+                        SELECT bsr.`date`, CONCAT(COALESCE(u.first_name, u.username), ' ', COALESCE(u.last_name, '')) as operator
                         FROM bait_station_records bsr
                         JOIN users u ON bsr.recorded_by = u.user_id
                         WHERE bsr.bait_station_code IN (SELECT bait_station_code FROM bait_stations WHERE line_id = %s)
-                        ORDER BY bsr.date DESC LIMIT 1
+                        ORDER BY bsr.`date` DESC LIMIT 1
                     """, (selected_line_id,))
                     last_station = cursor.fetchone()
 
                     cursor.execute("""
-                        SELECT tc.date, COALESCE(u.first_name, u.username) || ' ' || COALESCE(u.last_name, '') as operator
+                        SELECT tc.`date`, CONCAT(COALESCE(u.first_name, u.username), ' ', COALESCE(u.last_name, '')) as operator
                         FROM trap_catches tc
                         JOIN users u ON tc.recorded_by = u.user_id
                         WHERE tc.trap_code IN (SELECT trap_code FROM traps WHERE line_id = %s)
-                        ORDER BY tc.date DESC LIMIT 1
+                        ORDER BY tc.`date` DESC LIMIT 1
                     """, (selected_line_id,))
                     last_trap = cursor.fetchone()
 
@@ -195,26 +195,26 @@ def view_lines():
                     # 4. Recent Activity for this Line
                     if selected_line_type == 'bait_station':
                         cursor.execute("""
-                            SELECT 'bait' as type, bsr.date, u.username, b.bait_station_code as code, 
+                            SELECT 'bait' as type, bsr.`date`, u.username, b.bait_station_code as code,
                                    'Checked' as species_name, l.line_name
                             FROM bait_station_records bsr
                             JOIN users u ON bsr.recorded_by = u.user_id
                             JOIN bait_stations b ON bsr.bait_station_code = b.bait_station_code
-                            JOIN lines l ON b.line_id = l.line_id
+                            JOIN `lines` l ON b.line_id = l.line_id
                             WHERE l.line_id = %s
-                            ORDER BY bsr.date DESC LIMIT 5
+                            ORDER BY bsr.`date` DESC LIMIT 5
                         """, (selected_line_id,))
                     else:
                         cursor.execute("""
-                            SELECT 'catch' as type, tc.date, u.username, t.trap_code as code, 
+                            SELECT 'catch' as type, tc.`date`, u.username, t.trap_code as code,
                                    s.species_name, l.line_name
                             FROM trap_catches tc
                             JOIN users u ON tc.recorded_by = u.user_id
                             JOIN traps t ON tc.trap_code = t.trap_code
-                            JOIN lines l ON t.line_id = l.line_id
+                            JOIN `lines` l ON t.line_id = l.line_id
                             JOIN species s ON tc.species_id = s.species_id
                             WHERE l.line_id = %s
-                            ORDER BY tc.date DESC LIMIT 5
+                            ORDER BY tc.`date` DESC LIMIT 5
                         """, (selected_line_id,))
                     recent_activity = cursor.fetchall()
 
@@ -223,13 +223,13 @@ def view_lines():
             group_longitude = None
             current_group_id = session.get('current_group_id')
             if not current_group_id and selected_line_id:
-                cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (selected_line_id,))
+                cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (selected_line_id,))
                 ln = cursor.fetchone()
                 if ln:
                     current_group_id = ln['group_id']
 
             if current_group_id:
-                cursor.execute("SELECT boundary_geojson, latitude, longitude FROM groups WHERE group_id = %s", (current_group_id,))
+                cursor.execute("SELECT boundary_geojson, latitude, longitude FROM `groups` WHERE group_id = %s", (current_group_id,))
                 grp = cursor.fetchone()
                 if grp:
                     boundary_geojson = grp.get('boundary_geojson')

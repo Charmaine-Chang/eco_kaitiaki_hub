@@ -66,7 +66,7 @@ def edit_trap(trap_code):
                 lng = None
 
                 if line_id:
-                    cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (line_id,))
+                    cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (line_id,))
                     new_line = cursor.fetchone()
                     if not new_line or (not session.get('is_super_admin') and str(new_line['group_id']) != str(session.get('current_group_id'))):
                         flash("Unauthorized line assignment.", "danger")
@@ -97,7 +97,7 @@ def edit_trap(trap_code):
                     flash("Invalid trap type selected.", "danger")
                     return redirect(url_for('admin.edit_trap', trap_code=trap_code))
 
-                cursor.execute("SELECT group_id FROM lines WHERE line_id = %s", (l_id,))
+                cursor.execute("SELECT group_id FROM `lines` WHERE line_id = %s", (l_id,))
                 line_row = cursor.fetchone()
                 line_group_id = line_row['group_id'] if line_row else session.get('current_group_id')
 
@@ -134,7 +134,7 @@ def action_retire_trap(trap_code):
     try:
         conn = get_db()
         with get_cursor_context() as cursor:
-            cursor.execute("SELECT l.group_id FROM traps t JOIN lines l ON t.line_id = l.line_id WHERE t.trap_code = %s", (trap_code,))
+            cursor.execute("SELECT l.group_id FROM traps t JOIN `lines` l ON t.line_id = l.line_id WHERE t.trap_code = %s", (trap_code,))
             res = cursor.fetchone()
             
             if not res or (not session.get('is_super_admin') and str(res['group_id']) != str(session.get('current_group_id'))):

@@ -32,9 +32,9 @@ def _fetch_item(cursor, item_id):
     cursor.execute(f"""
         SELECT i.*, sa.storage_area_name, l.line_name, g.group_name
         FROM inventory_items i
-        JOIN groups g ON i.group_id = g.group_id
+        JOIN `groups` g ON i.group_id = g.group_id
         LEFT JOIN storage_area sa ON i.storage_area_id = sa.storage_area_id
-        LEFT JOIN lines l ON i.line_id = l.line_id
+        LEFT JOIN `lines` l ON i.line_id = l.line_id
         WHERE i.item_id = %s {scope}
     """, [item_id] + params)
     return cursor.fetchone()
@@ -299,11 +299,10 @@ def move_item(item_id):
                                             """
                                             INSERT INTO inventory_items (group_id, item_category, item_name, quantity, unit_of_measure, threshold, storage_area_id, line_id)
                                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                                            RETURNING item_id
                                             """,
                                             (item['group_id'], item['item_category'], item['item_name'], d['qty'], item.get('unit_of_measure'), item.get('threshold') or 0, new_storage_id, new_line_id),
                                         )
-                                        new_id = cur.fetchone()['item_id']
+                                        new_id = cur.lastrowid
                                         details = f'moved: {d["qty"]}'
                                         if comment:
                                             details += f'; comment: {comment}'
@@ -631,7 +630,7 @@ def audit_log():
             FROM inventory_log il
             LEFT JOIN users u ON il.user_id = u.user_id
             LEFT JOIN inventory_items ii ON il.target_item_type = 'item' AND il.target_item_id = ii.item_id
-            LEFT JOIN groups g ON il.group_id = g.group_id
+            LEFT JOIN `groups` g ON il.group_id = g.group_id
             WHERE 1=1
         """ + scope.replace('i.', 'il.')
         qparams = list(params)
