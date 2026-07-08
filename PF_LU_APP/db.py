@@ -11,7 +11,9 @@ def get_db():
             password=connect.dbpass,
             host=connect.dbhost,
             port=connect.dbport,
-            dbname=connect.dbname
+            dbname=connect.dbname,
+            sslmode=getattr(connect, "sslmode", "prefer")
+        )
         )
     return g.db
 
