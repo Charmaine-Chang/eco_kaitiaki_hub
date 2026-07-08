@@ -14,7 +14,6 @@ def get_db():
             dbname=connect.dbname,
             sslmode=getattr(connect, "sslmode", "prefer")
         )
-        )
     return g.db
 
 from contextlib import contextmanager
