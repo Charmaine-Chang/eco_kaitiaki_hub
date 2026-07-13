@@ -220,10 +220,13 @@ def fetch_updates_list(group_id, include_drafts=False):
 
 def fetch_update_images_batch(update_ids):
     """Fetch images for multiple updates."""
+    if not update_ids:
+        return {}
     cursor = get_cursor()
+    placeholders = ', '.join(['%s'] * len(update_ids))
     cursor.execute(
-        "SELECT * FROM group_update_images WHERE update_id = ANY(%s) ORDER BY image_id ASC",
-        (update_ids,),
+        f"SELECT * FROM group_update_images WHERE update_id IN ({placeholders}) ORDER BY image_id ASC",
+        tuple(update_ids),
     )
     rows = cursor.fetchall()
     cursor.close()
@@ -235,10 +238,13 @@ def fetch_update_images_batch(update_ids):
 
 def fetch_user_liked_ids(user_id, update_ids):
     """Fetch which updates a user has liked."""
+    if not update_ids:
+        return set()
     cursor = get_cursor()
+    placeholders = ', '.join(['%s'] * len(update_ids))
     cursor.execute(
-        "SELECT update_id FROM update_likes WHERE user_id = %s AND update_id = ANY(%s)",
-        (user_id, update_ids),
+        f"SELECT update_id FROM update_likes WHERE user_id = %s AND update_id IN ({placeholders})",
+        [user_id] + list(update_ids),
     )
     ids = {r['update_id'] for r in cursor.fetchall()}
     cursor.close()
@@ -283,10 +289,13 @@ def fetch_update_by_id(update_id, group_id):
 
 def delete_update_images(image_ids, update_id):
     """Delete specific images from an update."""
+    if not image_ids:
+        return
     cursor = get_cursor()
+    placeholders = ', '.join(['%s'] * len(image_ids))
     cursor.execute(
-        "DELETE FROM group_update_images WHERE image_id = ANY(%s) AND update_id = %s",
-        (image_ids, update_id),
+        f"DELETE FROM group_update_images WHERE image_id IN ({placeholders}) AND update_id = %s",
+        list(image_ids) + [update_id],
     )
     cursor.close()
 

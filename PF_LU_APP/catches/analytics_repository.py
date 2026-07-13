@@ -188,10 +188,10 @@ def fetch_data_graphs(session, line_id=None, start_date=None, end_date=None,
     """)]
 
     dates_data = [dict(row) for row in fetch_activity("""
-        SELECT DATE_FORMAT(record_date, '%Y-%m-%d') as catch_date, COUNT(*) as count
+        SELECT DATE_FORMAT(record_date, '%%Y-%%m-%%d') as catch_date, COUNT(*) as count
         FROM activity
-        GROUP BY DATE(record_date)
-        ORDER BY DATE(record_date)
+        GROUP BY DATE_FORMAT(record_date, '%%Y-%%m-%%d')
+        ORDER BY DATE_FORMAT(record_date, '%%Y-%%m-%%d')
     """)]
 
     map_rows = fetch_activity("""
@@ -404,11 +404,12 @@ def fetch_trend_analytics(session, interval='month', line_id=None, start_date=No
         group_params_station.append(f"{end_date} 23:59:59")
 
     # Date format for display labels (MySQL format strings)
+    # NOTE: doubled %% to survive PyMySQL's %-based parameter binding
     fmt_map = {
-        'day': '%Y-%m-%d',
-        'week': '%x-%v',
-        'month': '%Y-%m',
-        'year': '%Y',
+        'day': '%%Y-%%m-%%d',
+        'week': '%%x-%%v',
+        'month': '%%Y-%%m',
+        'year': '%%Y',
     }
     date_fmt = fmt_map[interval]
 

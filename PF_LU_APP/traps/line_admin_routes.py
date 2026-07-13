@@ -27,6 +27,9 @@ def view_lines():
     available_operators = []
     selected_line_type = 'trap'
     is_selected_line_assigned = False
+    boundary_geojson = None
+    group_latitude = None
+    group_longitude = None
 
     stats = {'total_active_lines': 0, 'total_equipment': 0, 'last_sync': None}
     recent_activity = []
@@ -75,7 +78,7 @@ def view_lines():
 
             if not selected_line_id:
                 if is_global_view or not current_group_id:
-                    cursor.execute("SELECT COUNT(*) FROM `lines` WHERE status = 'active'")
+                    cursor.execute("SELECT COUNT(*) as count FROM `lines` WHERE status = 'active'")
                     stats['total_active_lines'] = cursor.fetchone()['count']
 
                     cursor.execute("""
@@ -100,7 +103,7 @@ def view_lines():
                     if recent_activity:
                         stats['last_sync'] = recent_activity[0]['date']
                 elif current_group_id:
-                    cursor.execute("SELECT COUNT(*) FROM `lines` WHERE group_id = %s AND status = 'active'", (current_group_id,))
+                    cursor.execute("SELECT COUNT(*) as count FROM `lines` WHERE group_id = %s AND status = 'active'", (current_group_id,))
                     stats['total_active_lines'] = cursor.fetchone()['count']
 
                     cursor.execute("""

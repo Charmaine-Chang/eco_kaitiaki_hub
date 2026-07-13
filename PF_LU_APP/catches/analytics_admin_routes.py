@@ -1,10 +1,9 @@
-import json
 from flask import render_template, request, redirect, url_for, flash, session, make_response, current_app
 from PF_LU_APP.db import get_cursor, get_cursor_context
 from PF_LU_APP.roles.admin import admin_bp
 from PF_LU_APP.shared.decorators import roles_required
 from PF_LU_APP.constants import ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR, ROLE_OBSERVER
-from PF_LU_APP.shared.utils import resolve_date_preset
+from PF_LU_APP.shared.utils import resolve_date_preset, safe_json_dumps
 from PF_LU_APP.catches.analytics_repository import fetch_data_graphs, fetch_trend_analytics
 
 
@@ -37,11 +36,11 @@ def data_graphs():
                                selected_operator_id=operator_id,
                                start_date=start_date,
                                end_date=end_date,
-                               species_data=json.dumps(data['species_data']),
-                               lines_data=json.dumps(data['lines_data']),
-                               dates_data=json.dumps(data['dates_data']),
-                               seasonal_data=json.dumps(data['seasonal_data']),
-                               map_data=json.dumps(data['map_data']),
+                               species_data=safe_json_dumps(data['species_data']),
+                               lines_data=safe_json_dumps(data['lines_data']),
+                               dates_data=safe_json_dumps(data['dates_data']),
+                               seasonal_data=safe_json_dumps(data['seasonal_data']),
+                               map_data=safe_json_dumps(data['map_data']),
                                kpis=data['kpis'],
                                recent_catches=data['recent_catches'],
                                operator_stats=data['operator_stats'],
@@ -53,23 +52,21 @@ def data_graphs():
         current_app.logger.exception(f"Error loading graphs: {e}")
         flash(f"Could not load graph data: {e}", "danger")
         return render_template('dashboards/graphs.html',
-                               lines=[],
-                               selected_line_id=line_ids[0] if len(line_ids) == 1 else '',
-                               start_date=start_date,
-                               end_date=end_date,
-                               species_data='[]',
-                               lines_data='[]',
-                               dates_data='[]',
-                               map_data='[]',
+                               lines=[], selected_line_id='', selected_line_ids=line_ids,
+                               species=[], operators=[], species_filter=species_id,
+                               record_type_filter=record_type, selected_operator_id=operator_id,
+                               start_date=start_date, end_date=end_date,
+                               species_data='[]', lines_data='[]', dates_data='[]',
+                               seasonal_data='[]', map_data='[]',
                                kpis={
-                                   'total_catches': 0,
-                                   'active_lines': 0,
-                                   'success_rate': 0,
-                                   'hotspot': 'N/A'
+                                   'total_catches': 0, 'active_lines': 0, 'active_stations': 0,
+                                   'total_trap_records': 0, 'total_bait_records': 0,
+                                   'total_bait_consumed': 0, 'maintenance_issues': 0,
+                                   'success_rate': 0, 'hotspot': 'N/A'
                                },
-                               recent_catches=[],
-                               role='admin'
-                               )
+                               recent_catches=[], operator_stats=[],
+                               selected_operator_detail=None, line_hotspots=[],
+                               station_hotspots=[], role='admin')
 
 
 @admin_bp.route('/graphs/download-report', methods=['GET'])
@@ -123,10 +120,10 @@ def download_graphs_report():
                 WHERE {where_str} GROUP BY l.line_name""", tuple(params))
             lines_data = [dict(r) for r in cursor.fetchall()]
 
-            cursor.execute(f"""SELECT DATE_FORMAT(tc.`date`, '%Y-%m-%d') as catch_date, COUNT(*) as count
+            cursor.execute(f"""SELECT DATE_FORMAT(tc.`date`, '%%Y-%%m-%%d') as catch_date, COUNT(*) as count
                 FROM trap_catches tc JOIN traps t ON tc.trap_code = t.trap_code
                 JOIN `lines` l ON t.line_id = l.line_id
-                WHERE {where_str} GROUP BY DATE(tc.`date`) ORDER BY DATE(tc.`date`)""", tuple(params))
+                WHERE {where_str} GROUP BY DATE_FORMAT(tc.`date`, '%%Y-%%m-%%d') ORDER BY DATE_FORMAT(tc.`date`, '%%Y-%%m-%%d')""", tuple(params))
             dates_data = [dict(r) for r in cursor.fetchall()]
 
             total_catches = sum(d['count'] for d in species_data)
@@ -214,10 +211,10 @@ def trend_analytics():
     try:
         data = fetch_trend_analytics(session, interval, line_id, start_date, end_date)
         return render_template('dashboards/trend_analytics.html',
-                               catches_trend=json.dumps(data['catches_trend']),
-                               bait_trend=json.dumps(data['bait_trend']),
-                               station_trend=json.dumps(data['station_trend']),
-                               seasonal_data=json.dumps(data['seasonal_data']),
+                               catches_trend=safe_json_dumps(data['catches_trend']),
+                               bait_trend=safe_json_dumps(data['bait_trend']),
+                               station_trend=safe_json_dumps(data['station_trend']),
+                               seasonal_data=safe_json_dumps(data['seasonal_data']),
                                interval=interval,
                                kpis=data['kpis'],
                                role='admin',

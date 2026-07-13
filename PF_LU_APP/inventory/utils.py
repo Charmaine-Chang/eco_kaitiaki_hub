@@ -98,7 +98,7 @@ def merge_duplicate_inventory_items(cursor, group_id=None):
                i.storage_area_id,
                i.line_id,
                i.unit_of_measure,
-               ARRAY_AGG(i.item_id ORDER BY i.item_id) AS item_ids,
+               GROUP_CONCAT(i.item_id ORDER BY i.item_id) AS item_ids,
                SUM(i.quantity) AS total_quantity,
                MAX(i.threshold) AS merged_threshold
         FROM inventory_items i
@@ -116,8 +116,11 @@ def merge_duplicate_inventory_items(cursor, group_id=None):
     cursor.execute(query, tuple(params))
     changed = False
     for dup in cursor.fetchall():
-        item_ids = dup['item_ids']
-        if not item_ids or len(item_ids) < 2:
+        item_ids_str = dup['item_ids']
+        if not item_ids_str:
+            continue
+        item_ids = [int(x) for x in item_ids_str.split(',')]
+        if len(item_ids) < 2:
             continue
         keep_id = item_ids[0]
         remove_ids = item_ids[1:]
@@ -129,9 +132,10 @@ def merge_duplicate_inventory_items(cursor, group_id=None):
             """,
             (dup['total_quantity'], dup['merged_threshold'], keep_id),
         )
+        placeholders = ', '.join(['%s'] * len(remove_ids))
         cursor.execute(
-            "DELETE FROM inventory_items WHERE item_id = ANY(%s)",
-            (remove_ids,),
+            f"DELETE FROM inventory_items WHERE item_id IN ({placeholders})",
+            tuple(remove_ids),
         )
         changed = True
     if changed and hasattr(cursor, 'connection'):
@@ -173,7 +177,7 @@ def fetch_consumable_stock(cursor, group_id=None, all_groups=False):
         GROUP BY i.item_category, i.item_name, i.group_id, g.group_name,
                  sa.storage_area_id, sa.storage_area_name,
                  l.line_id, l.line_name, i.unit_of_measure
-        ORDER BY i.item_name ASC, sa.storage_area_name ASC NULLS LAST, l.line_name ASC NULLS LAST
+        ORDER BY i.item_name ASC, sa.storage_area_name IS NULL, sa.storage_area_name ASC, l.line_name IS NULL, l.line_name ASC
     """
     cursor.execute(query, tuple(params))
     return cursor.fetchall()

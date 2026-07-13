@@ -293,19 +293,24 @@ def group_update_detail(group_id, update_id):
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
+    user_id = session["user_id"]
     entry = fetch_update_detail(update_id, group_id)
     if not entry:
         flash("Update not found.", "danger")
         return redirect(url_for("updates.updates_list", group_id=group_id))
 
-    user_liked = fetch_update_detail(update_id, group_id) is not None and fetch_user_liked_ids(session["user_id"], [update_id])
+    images = fetch_update_images(update_id)
+    user_has_liked = bool(fetch_user_liked_ids(user_id, [update_id]))
     comments = fetch_update_comments(update_id)
+    is_super_admin = session.get("is_super_admin", False)
+    can_delete_comments = is_super_admin or check_coordinator_access(user_id, group_id, is_super_admin)
 
     gname = fetch_group_name(group_id) or "Group"
     return render_template(
-        "groups/update_detail.html",
+        "groups/group_update_detail.html",
         update=entry, group_id=group_id, group_name=gname,
-        comments=comments, user_liked=bool(user_liked),
+        images=images, comments=comments, user_has_liked=user_has_liked,
+        can_delete_comments=can_delete_comments,
     )
 
 

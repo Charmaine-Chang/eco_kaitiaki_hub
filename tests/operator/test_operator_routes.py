@@ -26,8 +26,8 @@ def test_operator_edit_bait_station_post(client, auth):
     response = client.post('/operator/edit_bait_station/D-BS1', data={
         'bait_station_type_id': '1',
         'line_id': '2',
-        'latitude': '-43.6425',
-        'longitude': '172.4685',
+        'latitude': '-43.0805',
+        'longitude': '172.1745',
         'equipment_status': 'Active'
     })
     # Should redirect to view_lines (which matches operator.view_lines)
@@ -47,8 +47,8 @@ def test_operator_edit_trap_post(client, auth):
     response = client.post('/operator/edit_trap/D-T5', data={
         'trap_type_id': '1',
         'line_id': '6',
-        'latitude': '-43.6425',
-        'longitude': '172.4685',
+        'latitude': '-43.0805',
+        'longitude': '172.1745',
         'equipment_status': 'Active'
     })
     assert response.status_code == 302

@@ -365,17 +365,18 @@
         const csvBtn = this.querySelector('button[onclick*="csv"]');
         const pdfBtn = this.querySelector('button[onclick*="pdf"]');
         const formatVal = document.getElementById('formatInput').value;
-        
-        const activeBtn = formatVal === 'pdf' ? pdfBtn : csvBtn;
+
+        const activeBtn = formatVal === 'pdf' && pdfBtn ? pdfBtn : csvBtn;
+        if (!activeBtn) return;
         const original = activeBtn.innerHTML;
         activeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
-        
-        csvBtn.disabled = true;
-        pdfBtn.disabled = true;
-        
-        setTimeout(() => { 
-            csvBtn.disabled = false; 
-            pdfBtn.disabled = false;
+
+        if (csvBtn) csvBtn.disabled = true;
+        if (pdfBtn) pdfBtn.disabled = true;
+
+        setTimeout(() => {
+            if (csvBtn) csvBtn.disabled = false;
+            if (pdfBtn) pdfBtn.disabled = false;
             activeBtn.innerHTML = original;
         }, 3000);
     });

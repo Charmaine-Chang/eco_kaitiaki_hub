@@ -1,6 +1,24 @@
 """Shared utility functions used across the application."""
 
-from datetime import datetime, timedelta
+import json
+from datetime import datetime, timedelta, date
+from decimal import Decimal
+
+
+def safe_json_dumps(data, **kwargs):
+    """JSON dumps that handles PyMySQL-specific types (Decimal, date, datetime)."""
+
+    class _Encoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, Decimal):
+                return float(obj) if '.' in str(obj) else int(obj)
+            if isinstance(obj, (date, datetime)):
+                return obj.isoformat()
+            if isinstance(obj, bytes):
+                return obj.decode('utf-8', errors='replace')
+            return super().default(obj)
+
+    return json.dumps(data, cls=_Encoder, **kwargs)
 
 
 def resolve_date_preset(preset, today=None):

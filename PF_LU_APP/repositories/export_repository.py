@@ -24,7 +24,7 @@ def get_group_name_by_id(group_id):
 def get_traps_export_data(group_id, date_from=None, date_to=None):
     """Fetches trap catch data for exporting."""
     query = '''
-        SELECT tc.trap_code AS code, DATE_FORMAT(tc.`date`, '%Y-%m-%d %H:%i') AS date,
+        SELECT tc.trap_code AS code, DATE_FORMAT(tc.`date`, '%%Y-%%m-%%d %%H:%%i') AS date,
                l.line_name AS line, u.username AS recorded_by, sp.species_name AS species_caught, 
                tc.sex, tc.maturity, ts.status_name AS status, 
                CASE WHEN tc.rebaited THEN 'Yes' ELSE 'No' END AS rebaited, 
@@ -59,7 +59,7 @@ def get_traps_export_data(group_id, date_from=None, date_to=None):
 def get_bait_stations_export_data(group_id, date_from=None, date_to=None):
     """Fetches bait station records for exporting."""
     query = '''
-        SELECT bsr.bait_station_code AS code, DATE_FORMAT(bsr.`date`, '%Y-%m-%d %H:%i') AS date,
+        SELECT bsr.bait_station_code AS code, DATE_FORMAT(bsr.`date`, '%%Y-%%m-%%d %%H:%%i') AS date,
                l.line_name AS line, u.username AS recorded_by, sp.species_name AS target_species, 
                bt.bait_type_name AS bait_type,
                bsr.active_ingredient, bsr.formulation, bsr.concentration, 

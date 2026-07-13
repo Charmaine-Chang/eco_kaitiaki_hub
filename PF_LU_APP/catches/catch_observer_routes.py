@@ -1,11 +1,10 @@
 import csv
 import io
-import json
 from flask import Blueprint, render_template, session, redirect, url_for, request, make_response, flash, current_app
 from PF_LU_APP.db import get_cursor_context
 from PF_LU_APP.constants import ROLE_SUPER_ADMIN, ROLE_COORDINATOR, ROLE_OPERATOR, ROLE_OBSERVER
 from PF_LU_APP.shared.decorators import roles_required
-from PF_LU_APP.shared.utils import resolve_date_preset
+from PF_LU_APP.shared.utils import resolve_date_preset, safe_json_dumps
 from PF_LU_APP.catches.catch_repository import (
     fetch_catches, fetch_catches_kpis,
     fetch_catches_for_csv,
@@ -46,8 +45,8 @@ def view_catches(line_id):
                                start_date=start_date,
                                end_date=end_date,
                                stats=stats,
-                               map_data=json.dumps(map_data),
-                               species_distribution=json.dumps([dict(row) for row in species_distribution]))
+                               map_data=safe_json_dumps(map_data),
+                               species_distribution=safe_json_dumps([dict(row) for row in species_distribution]))
     except Exception as e:
         import traceback
         traceback.print_exc()

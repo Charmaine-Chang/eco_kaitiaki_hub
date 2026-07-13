@@ -52,7 +52,7 @@ def fetch_published_entries(group_id):
         FROM knowledge_hub k
         JOIN users u ON u.user_id = k.user_id
         WHERE k.group_id = %s AND k.is_published = TRUE
-        ORDER BY k.is_featured DESC, k.updated_at DESC NULLS LAST, k.created_at DESC
+        ORDER BY k.is_featured DESC, k.updated_at IS NULL, k.updated_at DESC, k.created_at DESC
     """, (group_id,))
     rows = cursor.fetchall()
     cursor.close()
