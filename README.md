@@ -192,7 +192,7 @@ Developed at Lincoln University (COMP639, Semester 1 2026) by **Team Mokomoko**:
 - Charles Ma
 - Kristen Dai
 - Yue Qian
-- **Qi Chang** — [github.com/Qi-Chang-1128954](https://github.com/Qi-Chang-1128954)
+- **Qi Chang** — [github.com/Charmaine-Chang](https://github.com/Charmaine-Chang)
 
 ---
 
