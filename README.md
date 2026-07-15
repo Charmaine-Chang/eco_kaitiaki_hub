@@ -2,7 +2,6 @@
 
 **A web platform for ecological conservation teams to manage field operations, track pest control data, and monitor environmental impact.**
 
-[![CI Build](https://github.com/MokomokoTeam/PF_LU/actions/workflows/python-app.yml/badge.svg)](https://github.com/MokomokoTeam/PF_LU/actions)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.1-lightgrey.svg)](https://flask.palletsprojects.com/)
 [![MySQL](https://img.shields.io/badge/mysql-8.0-blue.svg)]
@@ -75,7 +74,7 @@ I also participated in code review, merge conflict resolution, and manual testin
 
 ### Trap Management
 
-![Trap Management](screenshots/traps.png)
+![Line Management](screenshots/lines.png)
 
 
 ### Analytics Dashboard
@@ -141,8 +140,8 @@ dbname = "your_db_name"
 Load the schema and seed data:
 
 ```bash
-psql -h localhost -U your_username -d your_db_name -f sql/create_database.sql
-psql -h localhost -U your_username -d your_db_name -f sql/populate_database.sql
+myql -h localhost -U your_username -d your_db_name -f sql/create_database.sql
+myql -h localhost -U your_username -d your_db_name -f sql/populate_database.sql
 ```
 
 ### Run
@@ -177,7 +176,6 @@ pytest -v
 
 If I were to continue this project, here's what I'd focus on:
 
-- **Deploy it** — get a live demo on Render or Fly.io so it's immediately viewable by recruiters
 - **Replace jQuery DataTables** with a lighter approach (htmx or a small vanilla JS library) — DataTables works but feels heavy for what we use it for
 - **Add a REST API layer** — currently everything is server-rendered; an API would make it easier to build a mobile-friendly frontend later
 - **Improve test coverage in analytics** — the analytics queries are the most complex part of the app and deserve more thorough testing
@@ -195,6 +193,22 @@ Developed at Lincoln University (COMP639, Semester 1 2026) by **Team Mokomoko**:
 - Kristen Dai
 - Yue Qian
 - **Qi Chang** — [github.com/Qi-Chang-1128954](https://github.com/Qi-Chang-1128954)
+
+---
+
+## 🌐 Deployment
+
+The application is deployed using:
+
+- PythonAnywhere
+- MySQL database
+- Flask WSGI application server
+
+Deployment process includes:
+- Virtual environment configuration
+- Environment-specific database settings
+- WSGI configuration
+- Production database migration
 
 ---
 
