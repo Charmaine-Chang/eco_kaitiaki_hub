@@ -5,14 +5,14 @@
 [![CI Build](https://github.com/MokomokoTeam/PF_LU/actions/workflows/python-app.yml/badge.svg)](https://github.com/MokomokoTeam/PF_LU/actions)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.1-lightgrey.svg)](https://flask.palletsprojects.com/)
-[![PostgreSQL](https://img.shields.io/badge/postgresql-15-blue.svg)](https://www.postgresql.org/)
+[![MySQL](https://img.shields.io/badge/mysql-8.0-blue.svg)]
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
 ## 📖 About
 
-Eco Kaitiaki Hub was built as part of a Lincoln University group project (COMP639) to support **Predator Free New Zealand** initiatives. The app helps conservation groups coordinate their field work — tracking where traps and bait stations are deployed, recording pest catches, managing equipment inventory, and visualising trends through dashboards.
+Eco Kaitiaki Hub is a full-stack conservation management platform originally developed as part of Lincoln University's COMP639 Studio Project and further refined, deployed, and maintained as a personal portfolio project. The app helps conservation groups coordinate their field work — tracking where traps and bait stations are deployed, recording pest catches, managing equipment inventory, and visualising trends through dashboards.
 
 It's designed around a **multi-group model**: each conservation group operates independently, with its own members, trap lines, storage areas, and data. Role-based access ensures field operators only see what they need, while coordinators and admins get a broader view.
 
@@ -23,12 +23,12 @@ It's designed around a **multi-group model**: each conservation group operates i
 | Layer | Technology |
 |---|---|
 | **Backend** | Python 3.13, Flask 3.1 |
-| **Database** | PostgreSQL 15, `psycopg2-binary` |
+| **Database** | MySQL 8.0, PyMySQL |
 | **Frontend** | Jinja2 templates, Bootstrap 5, Vanilla JS, jQuery DataTables |
 | **Auth** | Flask-BCrypt (password hashing), custom RBAC decorators |
 | **PDF Export** | `fpdf2` |
 | **Testing** | `pytest` (60+ tests), `flake8` |
-| **CI** | GitHub Actions with ephemeral PostgreSQL service containers |
+| **CI** | GitHub Actions automated testing workflow |
 
 No heavy ORMs or frontend frameworks — deliberately kept lean to focus on understanding how the web stack fits together end-to-end.
 
@@ -51,7 +51,7 @@ No heavy ORMs or frontend frameworks — deliberately kept lean to focus on unde
 
 ## 👩‍💻 My Role
 
-I was one of five developers on this project. My primary contributions were:
+As part of a five-person development team, I contributed to backend development, database-driven features, analytics, and deployment.
 
 - **Trend Analytics** — Built the trend analytics dashboard that visualises catch data over time, helping groups spot patterns in pest activity
 - **PDF Report Export** — Implemented server-side PDF generation so coordinators can download and share field reports
@@ -67,15 +67,41 @@ I also participated in code review, merge conflict resolution, and manual testin
 
 ## 📸 Screenshots
 
-<!-- TODO: Add screenshots of key pages (dashboard, catch recording, analytics, inventory) -->
 
-> *Screenshots coming soon — the app currently runs locally with a PostgreSQL database and seeded test data.*
+### Dashboard
+
+![Dashboard](screenshots/dashboard.png)
+
+
+### Trap Management
+
+![Trap Management](screenshots/traps.png)
+
+
+### Analytics Dashboard
+
+![Analytics](screenshots/analytics.png)
+
+
+### Knowledge Hub
+
+![Knowledge Hub](screenshots/knowledge.png)
 
 ---
 
-## 🚀 Demo
+## 🚀 Live Demo
 
-> *A live demo is not yet deployed. If you'd like to see the app in action, follow the local setup instructions below or reach out to me directly.*
+The application is deployed on PythonAnywhere:
+
+🌐 https://qichang1128954.pythonanywhere.com
+
+Demo accounts are available for testing:
+| Username | Password | Role |
+|---|---|---|
+| `superadmin` | `Password123!` | Super Admin |
+| `coord_Alice` | `Password123!` | Group Coordinator |
+| `coord_charlie` | `Password123!` | Group Coordinator |
+| `op_dave` | `Password123!` | Operator |
 
 ---
 
@@ -89,7 +115,7 @@ I also participated in code review, merge conflict resolution, and manual testin
 
 ```bash
 # Clone the repo
-git clone https://github.com/MokomokoTeam/PF_LU.git
+git clone https://github.com/Charmaine-Chang/eco_kaitiaki_hub.git
 cd PF_LU
 
 # Create and activate virtual environment
